@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>GitLab Explorer</title>
+<style>
+body { font-family: sans-serif; margin: 20px; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+th, td { border: 1px solid #ccc; padding: 6px; text-align: left; vertical-align: top; }
+th { background: #f5f5f5; }
+select { min-width: 200px; }
+.error { color: red; }
+.group { margin-top: 20px; border: 1px solid #ddd; padding: 10px; border-radius: 8px; }
+.group-header { cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.toggle-btn { margin-right: 8px; font-weight: bold; cursor: pointer; user-select: none; }
+.pipeline-section { margin: 0; padding: 0; border: none; display: none; }
+.pipeline-error { color: red; }
+.stage-row { background: #f9f9f9; }
+.status-btn {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    border: none;
+    cursor: default;
+}
+.status-failed { background-color: red; }
+.status-manual { background-color: orange; }
+.status-success { background-color: green; }
+</style>
+</head>
+<body>
+<h1>GitLab Explorer</h1>
+
+<form method="POST" action="/">
+    <label>GitLab OAuth Token:&nbsp;</label>
+    <input type="text" name="token" size="60" value="{{.Token}}">
+    <button type="submit">Загрузить</button>
+</form>
+
+{{if .Error}}
+<p class="error">Ошибка: {{.Error}}</p>
+{{end}}
+
+{{range $i, $g := .Groups}}
+<div class="group">
+    <div class="group-header" onclick="toggleGroup('group{{$i}}')">
+        <span id="btn-group{{$i}}" class="toggle-btn">[+]</span>
+        <h2 style="margin:0">Группа: {{$g.Name}} ({{$g.Path}})</h2>
+    </div>
+
+    <div id="group{{$i}}" class="group-content" style="display:none; margin-top:8px;">
+        <table>
+            <tr>
+                <th>Проект</th>
+                <th>Реф</th>
+                <th>Действие</th>
+                <th>Джоб / Bridge</th>
+            </tr>
+            {{range $j, $p := $g.Projects}}
+            <tr>
+                <td>{{.Name}}</td>
+                <td>
+                    <select id="ref-{{$i}}-{{$j}}">
+                        {{range .Refs}}<option>{{.}}</option>{{else}}<option>—</option>{{end}}
+                    </select>
+                </td>
+                <td>
+                    <button onclick="loadPipeline('{{$i}}', '{{$j}}', '{{$p.ID}}')">Загрузить пайплайн</button>
+                </td>
+                <td>
+                    <div id="pipeline-{{$i}}-{{$j}}" class="pipeline-section">
+                        <p class="pipeline-error" id="pipeline-error-{{$i}}-{{$j}}" style="display:none;"></p>
+                        <table style="width:100%;">
+                            <tbody id="jobs-{{$i}}-{{$j}}"></tbody>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+            {{end}}
+            {{if not $g.Projects}}
+            <tr><td colspan="4">Нет проектов</td></tr>
+            {{end}}
+        </table>
+    </div>
+</div>
+{{end}}
+
+<script>
+function toggleGroup(id) {
+    const content = document.getElementById(id);
+    const btn = document.getElementById("btn-" + id);
+    const isHidden = window.getComputedStyle(content).display === "none";
+    content.style.display = isHidden ? "block" : "none";
+    btn.textContent = isHidden ? "[−]" : "[+]";
+}
+
+function getStatusClass(status) {
+    switch(status) {
+        case 'failed': return 'status-btn status-failed';
+        case 'manual': return 'status-btn status-manual';
+        case 'success': return 'status-btn status-success';
+        default: return 'status-btn';
+    }
+}
+
+async function loadPipeline(groupIdx, projIdx, projectId) {
+    const select = document.getElementById('ref-' + groupIdx + '-' + projIdx);
+    const ref = select.value;
+    if (ref === '—') { alert('Выберите реф'); return; }
+
+    const token = document.querySelector('input[name="token"]').value;
+    if (!token) { alert('Введите токен'); return; }
+
+    const section = document.getElementById('pipeline-' + groupIdx + '-' + projIdx);
+    const errorP = document.getElementById('pipeline-error-' + groupIdx + '-' + projIdx);
+    const jobsTbody = document.getElementById('jobs-' + groupIdx + '-' + projIdx);
+
+    section.style.display = 'block';
+    errorP.style.display = 'none';
+    jobsTbody.innerHTML = '';
+
+    try {
+        const response = await fetch('/pipeline?project_id=' + projectId + '&ref=' + encodeURIComponent(ref) + '&token=' + encodeURIComponent(token));
+        if (!response.ok) throw new Error('HTTP error ' + response.status);
+        const data = await response.json();
+        if (data.error) { errorP.textContent = data.error; errorP.style.display = 'block'; return; }
+        if (!data.jobs) data.jobs = []; if (!data.bridges) data.bridges = [];
+
+        const stages = {};
+        data.jobs.forEach(job => { if(!stages[job.stage]) stages[job.stage]=[]; stages[job.stage].push(job); });
+
+        // обычные jobs
+        Object.keys(stages).forEach(stage => {
+            const stageTr = document.createElement('tr');
+            stageTr.className = 'stage-row'; 
+            stageTr.innerHTML = '<td><b>Stage:</b> ' + stage + '</td>';
+            jobsTbody.appendChild(stageTr);
+
+            stages[stage].forEach(job => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td style="padding-left:20px;">' + job.name +
+                               ' <button class="' + getStatusClass(job.status) + '">' + job.status + '</button></td>';
+                jobsTbody.appendChild(tr);
+            });
+        });
+
+        // bridges и downstream jobs
+        data.bridges.forEach((bridge) => {
+            const bridgeTr = document.createElement('tr');
+            bridgeTr.className = 'stage-row';
+            bridgeTr.innerHTML = '<td><b>Bridge:</b> ' + bridge.name +
+                                 ' <button class="' + getStatusClass(bridge.status) + '">' + bridge.status + '</button></td>';
+            jobsTbody.appendChild(bridgeTr);
+
+            if (bridge.downstream_jobs && bridge.downstream_jobs.length > 0) {
+                const bStages = {};
+                bridge.downstream_jobs.forEach(job => {
+                    if (!bStages[job.stage]) bStages[job.stage] = [];
+                    bStages[job.stage].push(job);
+                });
+
+                Object.keys(bStages).reverse().forEach(stage => {
+                    const stageTrDS = document.createElement('tr');
+                    stageTrDS.className = 'stage-row';
+                    stageTrDS.innerHTML = '<td style="padding-left:10px;"><b>Stage:</b> ' + stage + '</td>';
+                    jobsTbody.appendChild(stageTrDS);
+
+                    bStages[stage].forEach(job => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = '<td style="padding-left:30px;">' + job.name +
+                                       ' <button class="' + getStatusClass(job.status) + '">' + job.status + '</button></td>';
+                        jobsTbody.appendChild(tr);
+                    });
+                });
+            }
+        });
+
+    } catch (err) { errorP.textContent = 'Ошибка: ' + err.message; errorP.style.display='block'; }
+}
+</script>
+
+</body>
+</html>

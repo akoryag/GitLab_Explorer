@@ -1,43 +1,19 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
+	"encoding/json"
+	"html/template"
 	"log"
-	"os"
-	"sort"
+	"net/http"
 	"strings"
 
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 type ProjectInfo struct {
-	Name    string
-	ID      int
-	Refs    []string // ветки и теги (теги с префиксом tag:)
-	LastTag string   // последний тег
-	Pipe    []PipelineInfo
-}
-
-type PipelineInfo struct {
-	ID      int
-	Status  string
-	Ref     string
-	Bridges []BridgeInfo
-}
-
-type BridgeInfo struct {
-	ID     int
-	Name   string
-	Status string
-	Jobs   []JobInfo
-}
-
-type JobInfo struct {
-	ID     int
-	Name   string
-	Status string
-	Stage  string
+	Name string
+	ID   int
+	Refs []string // ветки и теги (теги с префиксом tag:)
 }
 
 type GroupInfo struct {
@@ -47,196 +23,223 @@ type GroupInfo struct {
 	Projects []ProjectInfo
 }
 
+type PageData struct {
+	Groups []GroupInfo
+	Error  string
+	Token  string
+}
+
+type PipelineJob struct {
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Stage  string `json:"stage"`
+}
+
+type BridgeInfo struct {
+	ID             int           `json:"id"`
+	Name           string        `json:"name"`
+	Status         string        `json:"status"`
+	DownstreamJobs []PipelineJob `json:"downstream_jobs"`
+}
+
+type PipelineInfo struct {
+	ID      int           `json:"id"`
+	Ref     string        `json:"ref"`
+	Jobs    []PipelineJob `json:"jobs"`
+	Bridges []BridgeInfo  `json:"bridges"`
+	Error   string        `json:"error"`
+}
+
+var pageTmpl *template.Template
+
 func main() {
-	reader := bufio.NewReader(os.Stdin)
+	// Загружаем шаблон из файла
+	var err error
+	pageTmpl, err = template.ParseFiles("templates/page.html")
+	if err != nil {
+		log.Fatal("Ошибка загрузки шаблона:", err)
+	}
+	http.HandleFunc("/", handler)
+	http.HandleFunc("/pipeline", pipelineHandler)
+	log.Println("Сервер запущен на http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
 
-	fmt.Printf("Gitlab OAuth token: ")
-	token, _ := reader.ReadString('\n')
-	token = strings.TrimSpace(token)
+func handler(w http.ResponseWriter, r *http.Request) {
+	data := PageData{}
 
-	// fmt.Print("ID группы: ")
-	// groupID, _ := reader.ReadString('\n')
-	// groupID = strings.TrimSpace(groupID)
+	if r.Method == http.MethodPost {
+		token := strings.TrimSpace(r.FormValue("token"))
+		data.Token = token
+
+		if token == "" {
+			data.Error = "Введите токен"
+			_ = pageTmpl.Execute(w, data)
+			return
+		}
+
+		client, err := gitlab.NewClient(token, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+		if err != nil {
+			data.Error = "Ошибка создания клиента: " + err.Error()
+			_ = pageTmpl.Execute(w, data)
+			return
+		}
+
+		var rootGroupID = 0
+		rootGroup, _, err := client.Groups.GetGroup(rootGroupID, nil)
+		if err != nil {
+			data.Error = "Ошибка получения группы: " + err.Error()
+			_ = pageTmpl.Execute(w, data)
+			return
+		}
+
+		allGroups := []*gitlab.Group{rootGroup}
+		subgroups, _, err := client.Groups.ListDescendantGroups(rootGroupID, &gitlab.ListDescendantGroupsOptions{})
+		if err == nil {
+			allGroups = append(allGroups, subgroups...)
+		}
+
+		for _, g := range allGroups {
+			grp := GroupInfo{Name: g.Name, ID: g.ID, Path: g.FullPath}
+
+			projects, _, err := client.Groups.ListGroupProjects(g.ID, &gitlab.ListGroupProjectsOptions{})
+			if err != nil {
+				log.Printf("Ошибка получения проектов группы %s: %v", g.FullPath, err)
+				continue
+			}
+
+			for _, p := range projects {
+				prj := ProjectInfo{Name: p.Name, ID: p.ID}
+
+				branches, _, _ := client.Branches.ListBranches(p.ID, &gitlab.ListBranchesOptions{})
+				for _, b := range branches {
+					prj.Refs = append(prj.Refs, b.Name)
+				}
+
+				tags, _, _ := client.Tags.ListTags(p.ID, &gitlab.ListTagsOptions{})
+				for _, t := range tags {
+					prj.Refs = append(prj.Refs, "tag:"+t.Name)
+				}
+
+				grp.Projects = append(grp.Projects, prj)
+			}
+
+			data.Groups = append(data.Groups, grp)
+		}
+	}
+
+	_ = pageTmpl.Execute(w, data)
+}
+
+func pipelineHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Токен не предоставлен"})
+		return
+	}
+
+	projectID := r.URL.Query().Get("project_id")
+	if projectID == "" {
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "ID проекта не предоставлен"})
+		return
+	}
+
+	ref := r.URL.Query().Get("ref")
+	if ref == "" {
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Ref не предоставлен"})
+		return
+	}
+
+	// убираем префикс "tag:"
+	if after, ok := strings.CutPrefix(ref, "tag:"); ok {
+		ref = after
+	}
 
 	client, err := gitlab.NewClient(token, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
 	if err != nil {
-		log.Fatalf("Ошибка создания клиента: %v", err)
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Ошибка создания клиента: " + err.Error()})
+		return
 	}
 
-	// корневая группа
-	rootGroupID := 0
-	rootGroup, _, err := client.Groups.GetGroup(rootGroupID, nil)
+	// берем последний пайплайн для рефа
+	opts := &gitlab.ListProjectPipelinesOptions{
+		Ref:         gitlab.Ptr(ref),
+		Sort:        gitlab.Ptr("desc"),
+		OrderBy:     gitlab.Ptr("id"),
+		ListOptions: gitlab.ListOptions{PerPage: 1, Page: 1},
+	}
+	pipelines, _, err := client.Pipelines.ListProjectPipelines(projectID, opts)
 	if err != nil {
-		log.Fatalf("Ошибка получения группы: %v", err)
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Ошибка получения пайплайнов: " + err.Error()})
+		return
+	}
+	if len(pipelines) == 0 {
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Нет пайплайнов для этого рефа"})
+		return
+	}
+	pipeline := pipelines[0]
+
+	// список джобов
+	jobOpts := &gitlab.ListJobsOptions{}
+	jobs, _, err := client.Jobs.ListPipelineJobs(projectID, pipeline.ID, jobOpts)
+	if err != nil {
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Ошибка получения джобов: " + err.Error()})
+		return
+	}
+	var pipelineJobs []PipelineJob
+	for _, j := range jobs {
+		pipelineJobs = append(pipelineJobs, PipelineJob{
+			ID:     j.ID,
+			Name:   j.Name,
+			Status: j.Status,
+			Stage:  j.Stage,
+		})
 	}
 
-	allGroups := []*gitlab.Group{rootGroup}
-	subgroups, _, err := client.Groups.ListDescendantGroups(rootGroupID, &gitlab.ListDescendantGroupsOptions{})
-	if err == nil {
-		allGroups = append(allGroups, subgroups...)
+	// список bridges
+	bridges, _, err := client.Jobs.ListPipelineBridges(projectID, pipeline.ID, &gitlab.ListJobsOptions{})
+	if err != nil {
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Ошибка получения bridges: " + err.Error()})
+		return
 	}
-
-	var groupsInfo []GroupInfo
-	for _, g := range allGroups {
-		grp := GroupInfo{Name: g.Name, ID: g.ID, Path: g.FullPath}
-
-		projects, _, err := client.Groups.ListGroupProjects(g.ID, &gitlab.ListGroupProjectsOptions{})
-		if err != nil {
-			log.Printf("Ошибка получения проектов группы %s: %v", g.FullPath, err)
-			continue
+	var pipelineBridges []BridgeInfo
+	for _, bridge := range bridges {
+		b := BridgeInfo{
+			ID:     bridge.ID,
+			Name:   bridge.Name,
+			Status: bridge.Status,
 		}
 
-		for _, p := range projects {
-			prj := ProjectInfo{Name: p.Name, ID: p.ID}
-
-			branches, _, _ := client.Branches.ListBranches(p.ID, &gitlab.ListBranchesOptions{
-				ListOptions: gitlab.ListOptions{
-					PerPage: 10,
-					Page:    1,
-				},
-			})
-			for _, b := range branches {
-				prj.Refs = append(prj.Refs, b.Name)
-			}
-
-			// Получаем все теги и выбираем последний
-			tags, _, _ := client.Tags.ListTags(p.ID, &gitlab.ListTagsOptions{
-				OrderBy: gitlab.Ptr("updated"),
-				Sort:    gitlab.Ptr("desc"),
-			})
-
-			if len(tags) > 0 {
-				// Сортируем теги по дате создания, чтобы выбрать самый свежий
-				sort.Slice(tags, func(i, j int) bool {
-					return tags[i].Commit.CreatedAt.After(*tags[j].Commit.CreatedAt)
-				})
-				prj.LastTag = tags[0].Name
-				prj.Refs = append(prj.Refs, "tag:"+tags[0].Name)
-			}
-
-			// Добавляем остальные теги (кроме последнего) в общий список
-			for i := 1; i < len(tags); i++ {
-				prj.Refs = append(prj.Refs, "tag:"+tags[i].Name)
-			}
-
-			// Загружаем пайплайны по последнему тегу вместо ветки master
-			var refToSearch string
-			if prj.LastTag != "" {
-				refToSearch = prj.LastTag
-			} else {
-				refToSearch = "master"
-			}
-
-			pipelines, _, _ := client.Pipelines.ListProjectPipelines(p.ID, &gitlab.ListProjectPipelinesOptions{
-				Ref: gitlab.Ptr(refToSearch),
-				ListOptions: gitlab.ListOptions{
-					PerPage: 1,
-					Page:    1,
-				},
-			})
-
-			for _, pipe := range pipelines {
-				pipelineInfo := PipelineInfo{
-					ID:     pipe.ID,
-					Status: pipe.Status,
-					Ref:    pipe.Ref,
+		// загружаем downstream jobs если есть
+		if bridge.DownstreamPipeline != nil {
+			downstreamJobs, _, err := client.Jobs.ListPipelineJobs(
+				bridge.DownstreamPipeline.ProjectID,
+				bridge.DownstreamPipeline.ID,
+				&gitlab.ListJobsOptions{},
+			)
+			if err == nil {
+				for _, job := range downstreamJobs {
+					b.DownstreamJobs = append(b.DownstreamJobs, PipelineJob{
+						ID:     job.ID,
+						Name:   job.Name,
+						Status: job.Status,
+						Stage:  job.Stage,
+					})
 				}
-
-				// Получаем bridges для пайплайна
-				bridges, _, err := client.Jobs.ListPipelineBridges(p.ID, pipe.ID, &gitlab.ListJobsOptions{})
-				if err == nil {
-					for _, bridge := range bridges {
-						bridgeInfo := BridgeInfo{
-							ID:     bridge.ID,
-							Name:   bridge.Name,
-							Status: bridge.Status,
-						}
-
-						// Получаем джобы для bridge
-						if bridge.DownstreamPipeline != nil {
-							jobs, _, err := client.Jobs.ListPipelineJobs(bridge.DownstreamPipeline.ProjectID, bridge.DownstreamPipeline.ID, &gitlab.ListJobsOptions{})
-							if err == nil {
-								for _, job := range jobs {
-									bridgeInfo.Jobs = append(bridgeInfo.Jobs, JobInfo{
-										ID:     job.ID,
-										Name:   job.Name,
-										Status: job.Status,
-										Stage:  job.Stage,
-									})
-								}
-							}
-						}
-
-						pipelineInfo.Bridges = append(pipelineInfo.Bridges, bridgeInfo)
-					}
-				}
-
-				prj.Pipe = append(prj.Pipe, pipelineInfo)
 			}
-
-			grp.Projects = append(grp.Projects, prj)
 		}
 
-		groupsInfo = append(groupsInfo, grp)
+		pipelineBridges = append(pipelineBridges, b)
 	}
 
-	// выводим результаты
-	for _, g := range groupsInfo {
-		fmt.Printf("Группа: %s (%s)\n", g.Name, g.Path)
-		if len(g.Projects) == 0 {
-			fmt.Println("  Нет проектов")
-		} else {
-			for _, p := range g.Projects {
-				fmt.Printf("  Проект: %s\n", p.Name)
-
-				// Выводим последний тег отдельно
-				if p.LastTag != "" {
-					fmt.Printf("    Последний тег: %s\n", p.LastTag)
-				} else {
-					fmt.Println("    Последний тег: нет")
-				}
-
-				if len(p.Refs) == 0 {
-					fmt.Println("    Рефов нет")
-				} else {
-					fmt.Println("    Рефы:")
-					for _, r := range p.Refs {
-						fmt.Printf("      %s\n", r)
-					}
-				}
-
-				if len(p.Pipe) == 0 {
-					fmt.Println("    Пайплайнов нет")
-				} else {
-					fmt.Println("    Пайплайны:")
-					for _, pipe := range p.Pipe {
-						fmt.Printf("      Пайплайн ID: %d, Status: %s, Ref: %s\n",
-							pipe.ID, pipe.Status, pipe.Ref)
-
-						if len(pipe.Bridges) > 0 {
-							fmt.Println("        Bridges:")
-							for _, bridge := range pipe.Bridges {
-								fmt.Printf("          Bridge: %s (ID: %d, Status: %s)\n",
-									bridge.Name, bridge.ID, bridge.Status)
-
-								if len(bridge.Jobs) > 0 {
-									fmt.Println("            Jobs:")
-									for _, job := range bridge.Jobs {
-										fmt.Printf("              %s (ID: %d, Status: %s, Stage: %s)\n",
-											job.Name, job.ID, job.Status, job.Stage)
-									}
-								} else {
-									fmt.Println("            Jobs: нет")
-								}
-							}
-						} else {
-							fmt.Println("        Bridges: нет")
-						}
-					}
-				}
-				fmt.Println()
-			}
-		}
-		fmt.Println(strings.Repeat("-", 40))
-	}
+	// возвращаем данные
+	json.NewEncoder(w).Encode(PipelineInfo{
+		ID:      pipeline.ID,
+		Ref:     ref,
+		Jobs:    pipelineJobs,
+		Bridges: pipelineBridges,
+	})
 }
