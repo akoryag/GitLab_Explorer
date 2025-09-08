@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>GitLab Explorer</title>
 <style>
-body { font-family: sans-serif; margin: 20px; }
+body { font-family: sans-serif; margin: 20px auto; max-width: 70%; }
 table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #ccc; padding: 6px; text-align: left; vertical-align: top; }
 th { background: #f5f5f5; }
@@ -16,44 +16,18 @@ select { min-width: 200px; }
 .pipeline-section { margin: 0; padding: 0; border: none; display: none; }
 .pipeline-error { color: red; }
 .stage-row { background: #f9f9f9; }
-.status-btn {
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: bold;
-    color: white;
-    border: none;
-    cursor: default;
-}
+.status-btn { padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: white; border: none; cursor: default; min-width: 70px; text-align: center; }
 .status-failed { background-color: red; }
 .status-manual { background-color: orange; }
 .status-success { background-color: green; }
 
 /* кнопка Запустить */
-.run-btn {
-    padding: 2px 8px;
-    margin-left: 6px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: bold;
-    border: 1px solid #007bff;
-    background: #007bff;
-    color: white;
-    cursor: pointer;
-}
-.run-btn:hover {
-    background: #0056b3;
-}
+.run-btn { padding: 2px 8px; margin-left: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid #007bff; background: #007bff; color: white; cursor: pointer; min-width: 90px; text-align: center; }
+.run-btn:hover { background: #0056b3; }
 
 /* общий контейнер для выравнивания */
-.job-line {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.job-name {
-    flex: 1;
-}
+.job-line { display: flex; align-items: center; gap: 8px; }
+.job-name { flex: 1; }
 </style>
 </head>
 <body>
@@ -165,12 +139,13 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
             jobsTbody.appendChild(stageTr);
 
             stages[stage].forEach(job => {
+                const buttonText = (job.status !== 'manual') ? 'Перезапустить' : 'Запустить';
                 const tr = document.createElement('tr');
                 tr.innerHTML = '<td style="padding-left:20px;">' +
                                '<div class="job-line">' +
                                  '<span class="job-name">' + job.name + '</span>' +
                                  '<button class="' + getStatusClass(job.status) + '">' + job.status + '</button>' +
-                                 '<button class="run-btn" onclick="alert(\'Запуск пока не реализован\')">Запустить</button>' +
+                                 '<button class="run-btn" onclick="alert(\'Запуск пока не реализован\')">'+ buttonText +'</button>' +
                                '</div></td>';
                 jobsTbody.appendChild(tr);
             });
@@ -180,12 +155,7 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
         data.bridges.forEach((bridge) => {
             const bridgeTr = document.createElement('tr');
             bridgeTr.className = 'stage-row';
-            bridgeTr.innerHTML = '<td>' +
-                                 '<div class="job-line">' +
-                                   '<span class="job-name"><b>Bridge:</b> ' + bridge.name + '</span>' +
-                                   '<button class="' + getStatusClass(bridge.status) + '">' + bridge.status + '</button>' +
-                                   '<button class="run-btn" onclick="alert(\'Запуск пока не реализован\')">Запустить</button>' +
-                                 '</div></td>';
+            bridgeTr.innerHTML = '<td><b>Stage:</b> ' + bridge.name + '</td>';
             jobsTbody.appendChild(bridgeTr);
 
             if (bridge.downstream_jobs && bridge.downstream_jobs.length > 0) {
@@ -202,12 +172,13 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
                     jobsTbody.appendChild(stageTrDS);
 
                     bStages[stage].forEach(job => {
+                        const buttonText = (job.status !== 'manual') ? 'Перезапустить' : 'Запустить';
                         const tr = document.createElement('tr');
                         tr.innerHTML = '<td style="padding-left:30px;">' +
                                        '<div class="job-line">' +
                                          '<span class="job-name">' + job.name + '</span>' +
                                          '<button class="' + getStatusClass(job.status) + '">' + job.status + '</button>' +
-                                         '<button class="run-btn" onclick="alert(\'Запуск пока не реализован\')">Запустить</button>' +
+                                         '<button class="run-btn" onclick="alert(\'Запуск пока не реализован\')">'+ buttonText +'</button>' +
                                        '</div></td>';
                         jobsTbody.appendChild(tr);
                     });
