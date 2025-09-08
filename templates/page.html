@@ -28,6 +28,32 @@ select { min-width: 200px; }
 .status-failed { background-color: red; }
 .status-manual { background-color: orange; }
 .status-success { background-color: green; }
+
+/* кнопка Запустить */
+.run-btn {
+    padding: 2px 8px;
+    margin-left: 6px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+    border: 1px solid #007bff;
+    background: #007bff;
+    color: white;
+    cursor: pointer;
+}
+.run-btn:hover {
+    background: #0056b3;
+}
+
+/* общий контейнер для выравнивания */
+.job-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.job-name {
+    flex: 1;
+}
 </style>
 </head>
 <body>
@@ -140,8 +166,12 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
 
             stages[stage].forEach(job => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = '<td style="padding-left:20px;">' + job.name +
-                               ' <button class="' + getStatusClass(job.status) + '">' + job.status + '</button></td>';
+                tr.innerHTML = '<td style="padding-left:20px;">' +
+                               '<div class="job-line">' +
+                                 '<span class="job-name">' + job.name + '</span>' +
+                                 '<button class="' + getStatusClass(job.status) + '">' + job.status + '</button>' +
+                                 '<button class="run-btn" onclick="alert(\'Запуск пока не реализован\')">Запустить</button>' +
+                               '</div></td>';
                 jobsTbody.appendChild(tr);
             });
         });
@@ -150,8 +180,12 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
         data.bridges.forEach((bridge) => {
             const bridgeTr = document.createElement('tr');
             bridgeTr.className = 'stage-row';
-            bridgeTr.innerHTML = '<td><b>Bridge:</b> ' + bridge.name +
-                                 ' <button class="' + getStatusClass(bridge.status) + '">' + bridge.status + '</button></td>';
+            bridgeTr.innerHTML = '<td>' +
+                                 '<div class="job-line">' +
+                                   '<span class="job-name"><b>Bridge:</b> ' + bridge.name + '</span>' +
+                                   '<button class="' + getStatusClass(bridge.status) + '">' + bridge.status + '</button>' +
+                                   '<button class="run-btn" onclick="alert(\'Запуск пока не реализован\')">Запустить</button>' +
+                                 '</div></td>';
             jobsTbody.appendChild(bridgeTr);
 
             if (bridge.downstream_jobs && bridge.downstream_jobs.length > 0) {
@@ -169,8 +203,12 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
 
                     bStages[stage].forEach(job => {
                         const tr = document.createElement('tr');
-                        tr.innerHTML = '<td style="padding-left:30px;">' + job.name +
-                                       ' <button class="' + getStatusClass(job.status) + '">' + job.status + '</button></td>';
+                        tr.innerHTML = '<td style="padding-left:30px;">' +
+                                       '<div class="job-line">' +
+                                         '<span class="job-name">' + job.name + '</span>' +
+                                         '<button class="' + getStatusClass(job.status) + '">' + job.status + '</button>' +
+                                         '<button class="run-btn" onclick="alert(\'Запуск пока не реализован\')">Запустить</button>' +
+                                       '</div></td>';
                         jobsTbody.appendChild(tr);
                     });
                 });
