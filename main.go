@@ -52,7 +52,10 @@ type PipelineInfo struct {
 	Error   string        `json:"error"`
 }
 
-var pageTmpl *template.Template
+var (
+	pageTmpl     *template.Template
+	currentToken string
+)
 
 func main() {
 	// Загружаем шаблон из файла
@@ -80,8 +83,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			_ = pageTmpl.Execute(w, data)
 			return
 		}
+		currentToken = token
 
-		client, err := gitlab.NewClient(token, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+		client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
 		if err != nil {
 			data.Error = "Ошибка создания клиента: " + err.Error()
 			_ = pageTmpl.Execute(w, data)
@@ -137,9 +141,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 func pipelineHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	token := r.URL.Query().Get("token")
-	if token == "" {
-		json.NewEncoder(w).Encode(PipelineInfo{Error: "Токен не предоставлен"})
+	if currentToken == "" {
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Токен не задан"})
 		return
 	}
 
@@ -160,7 +163,7 @@ func pipelineHandler(w http.ResponseWriter, r *http.Request) {
 		ref = after
 	}
 
-	client, err := gitlab.NewClient(token, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
 	if err != nil {
 		json.NewEncoder(w).Encode(PipelineInfo{Error: "Ошибка создания клиента: " + err.Error()})
 		return
@@ -249,9 +252,8 @@ func pipelineHandler(w http.ResponseWriter, r *http.Request) {
 func playJobHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	token := r.URL.Query().Get("token")
-	if token == "" {
-		json.NewEncoder(w).Encode(map[string]string{"error": "Токен не предоставлен"})
+	if currentToken == "" {
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Токен не задан"})
 		return
 	}
 
@@ -267,7 +269,7 @@ func playJobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := gitlab.NewClient(token, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка создания клиента: " + err.Error()})
 		return

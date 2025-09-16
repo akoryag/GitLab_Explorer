@@ -41,9 +41,9 @@ select { min-width: 200px; }
 <body>
 <h1>GitLab Explorer</h1>
 
-<form method="POST" action="/">
+<form method="POST" action="/" onsubmit="setTimeout(() => { document.querySelector('input[name=token]').value=''; }, 100)">
     <label>GitLab OAuth Token:&nbsp;</label>
-    <input type="text" name="token" size="60" value="{{.Token}}">
+    <input type="password" name="token" size="60">
     <button type="submit">Загрузить</button>
 </form>
 
@@ -118,9 +118,6 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
     const ref = select.value;
     if (ref === '—') { alert('Выберите реф'); return; }
 
-    const token = document.querySelector('input[name="token"]').value;
-    if (!token) { alert('Введите токен'); return; }
-
     const section = document.getElementById('pipeline-' + groupIdx + '-' + projIdx);
     const errorP = document.getElementById('pipeline-error-' + groupIdx + '-' + projIdx);
     const jobsTbody = document.getElementById('jobs-' + groupIdx + '-' + projIdx);
@@ -130,7 +127,7 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
     jobsTbody.innerHTML = '';
 
     try {
-        const response = await fetch('/pipeline?project_id=' + projectId + '&ref=' + encodeURIComponent(ref) + '&token=' + encodeURIComponent(token));
+        const response = await fetch('/pipeline?project_id=' + projectId + '&ref=' + encodeURIComponent(ref));
         if (!response.ok) throw new Error('HTTP error ' + response.status);
         const data = await response.json();
         if (data.error) { errorP.textContent = data.error; errorP.style.display = 'block'; return; }
@@ -201,14 +198,10 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
 
 // Запуск jobs
 async function playJob(groupIdx, projIdx, projectId, jobId) {
-    const token = document.querySelector('input[name="token"]').value;
-    if (!token) { alert('Введите токен'); return; }
-
     try {
         const response = await fetch(
             '/playjob?project_id=' + projectId +
-            '&job_id=' + jobId +
-            '&token=' + encodeURIComponent(token),
+            '&job_id=' + jobId,
             { method: 'POST' }
         );
 
