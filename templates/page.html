@@ -42,11 +42,23 @@ select { min-width: 200px; }
 <body>
 <h1>GitLab Explorer</h1>
 
-<form method="POST" action="/" onsubmit="setTimeout(() => { document.querySelector('input[name=token]').value=''; }, 100)">
-    <label>GitLab OAuth Token:&nbsp;</label>
-    <input type="password" name="token" size="60">
+{{if not .Loaded}}
+<form method="POST" action="/">
+    <label>Gitlab URL:&nbsp;</label> <br><br>
+    <input type="text" name="gitlabURL" size="30" required> <br><br>
+
+    <label>GitLab OAuth Token:&nbsp;</label> <br><br>
+    <input type="password" name="token" size="30" required> <br><br>
+
+    <label>Root Group ID:&nbsp;</label> <br><br>
+    <input type="number" name="rootGroupID" size="30" min="0" step="1" required> <br><br>
     <button type="submit">Загрузить</button>
 </form>
+{{else}}
+<form method="POST" action="/logout">
+    <button type="logout">Выйти</button>
+</form>
+{{end}}
 
 {{if .Error}}
 <p class="error">Ошибка: {{.Error}}</p>

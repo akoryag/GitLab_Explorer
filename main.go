@@ -28,6 +28,7 @@ type PageData struct {
 	Groups []GroupInfo
 	Error  string
 	Token  string
+	Loaded bool
 }
 
 type PipelineJob struct {
@@ -55,6 +56,8 @@ type PipelineInfo struct {
 var (
 	pageTmpl     *template.Template
 	currentToken string
+	currentURL   string
+	currentID    int
 )
 
 func main() {
@@ -65,6 +68,7 @@ func main() {
 		log.Fatal("Ошибка загрузки шаблона:", err)
 	}
 	http.HandleFunc("/", handler)
+	http.HandleFunc("/logout", logoutHandler)
 	http.HandleFunc("/pipeline", pipelineHandler)
 	http.HandleFunc("/playjob", playJobHandler)
 	http.HandleFunc("/retryjob", retryJobHandler)
@@ -79,23 +83,24 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		token := strings.TrimSpace(r.FormValue("token"))
 		data.Token = token
-
-		if token == "" {
-			data.Error = "Введите токен"
-			_ = pageTmpl.Execute(w, data)
-			return
-		}
+		data.Loaded = true
 		currentToken = token
 
-		client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+		gitlabURL := strings.TrimSpace(r.FormValue("gitlabURL"))
+		currentURL = gitlabURL
+
+		rootGroupIDStr := strings.TrimSpace(r.FormValue("rootGroupID"))
+		rootGroupID, err := strconv.Atoi(rootGroupIDStr)
+		currentID = rootGroupID
+
+		client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL(currentURL+"/api/v4"))
 		if err != nil {
 			data.Error = "Ошибка создания клиента: " + err.Error()
 			_ = pageTmpl.Execute(w, data)
 			return
 		}
 
-		var rootGroupID = 0
-		rootGroup, _, err := client.Groups.GetGroup(rootGroupID, nil)
+		rootGroup, _, err := client.Groups.GetGroup(currentID, nil)
 		if err != nil {
 			data.Error = "Ошибка получения группы: " + err.Error()
 			_ = pageTmpl.Execute(w, data)
@@ -103,7 +108,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		allGroups := []*gitlab.Group{rootGroup}
-		subgroups, _, err := client.Groups.ListDescendantGroups(rootGroupID, &gitlab.ListDescendantGroupsOptions{})
+		subgroups, _, err := client.Groups.ListDescendantGroups(currentID, &gitlab.ListDescendantGroupsOptions{})
 		if err == nil {
 			allGroups = append(allGroups, subgroups...)
 		}
@@ -140,6 +145,20 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	_ = pageTmpl.Execute(w, data)
 }
 
+func logoutHandler(w http.ResponseWriter, r *http.Request) {
+	currentToken = ""
+	currentURL = ""
+	currentID = 0
+
+	data := PageData{
+		Groups: []GroupInfo{}, // очищаем группы
+		Loaded: false,         // форма снова отображается
+		Token:  "",
+		Error:  "",
+	}
+	_ = pageTmpl.Execute(w, data)
+}
+
 func pipelineHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -165,7 +184,7 @@ func pipelineHandler(w http.ResponseWriter, r *http.Request) {
 		ref = after
 	}
 
-	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL(currentURL+"/api/v4"))
 	if err != nil {
 		json.NewEncoder(w).Encode(PipelineInfo{Error: "Ошибка создания клиента: " + err.Error()})
 		return
@@ -271,7 +290,7 @@ func playJobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL(currentURL+"/api/v4"))
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка создания клиента: " + err.Error()})
 		return
@@ -310,7 +329,7 @@ func retryJobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL(currentURL+"/api/v4"))
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка создания клиента: " + err.Error()})
 		return
@@ -349,7 +368,7 @@ func cancelJobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL(currentURL+"/api/v4"))
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка создания клиента: " + err.Error()})
 		return
