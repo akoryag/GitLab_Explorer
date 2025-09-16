@@ -22,8 +22,16 @@ select { min-width: 200px; }
 .status-success { background-color: green; }
 
 /* кнопка Запустить */
-.run-btn { padding: 2px 8px; margin-left: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid #007bff; background: #007bff; color: white; cursor: pointer; min-width: 90px; text-align: center; }
+.run-btn { padding: 2px 8px; margin-left: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid green; background: green; color: white; cursor: pointer; min-width: 90px; text-align: center; }
 .run-btn:hover { background: #0056b3; }
+
+/* кнопка Перезапустить */
+.retry-btn { padding: 2px 8px; margin-left: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid #007bff; background: #007bff; color: white; cursor: pointer; min-width: 90px; text-align: center; }
+.retry-btn:hover { background: #0056b3; }
+
+/* кнопка Отмена */
+.cancel-btn { padding: 2px 8px; margin-left: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid red; background: red; color: white; cursor: pointer; min-width: 90px; text-align: center; }
+.cancel-btn:hover { background: red; }
 
 /* общий контейнер для выравнивания */
 .job-line { display: flex; align-items: center; gap: 8px; }
@@ -139,13 +147,14 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
             jobsTbody.appendChild(stageTr);
 
             stages[stage].forEach(job => {
-                const buttonText = (job.status !== 'manual') ? 'Перезапустить' : 'Запустить';
                 const tr = document.createElement('tr');
                 tr.innerHTML = '<td style="padding-left:20px;">' +
                                '<div class="job-line">' +
                                  '<span class="job-name">' + job.name + '</span>' +
                                  '<button class="' + getStatusClass(job.status) + '">' + job.status + '</button>' +
-                                 '<button class="run-btn" onclick="alert(\'Запуск пока не реализован\')">'+ buttonText +'</button>' +
+                                 '<button class="run-btn" onclick="playJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Запустить</button>' +
+                                 '<button class="retry-btn" onclick="alert(\'Перезапуск пока не реализован\')">Перезапустить</button>' +
+                                 '<button class="cancel-btn" onclick="alert(\'Отмена пока не реализована\')">Отменить</button>' +
                                '</div></td>';
                 jobsTbody.appendChild(tr);
             });
@@ -172,13 +181,14 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
                     jobsTbody.appendChild(stageTrDS);
 
                     bStages[stage].forEach(job => {
-                        const buttonText = (job.status !== 'manual') ? 'Перезапустить' : 'Запустить';
                         const tr = document.createElement('tr');
                         tr.innerHTML = '<td style="padding-left:30px;">' +
                                        '<div class="job-line">' +
                                          '<span class="job-name">' + job.name + '</span>' +
                                          '<button class="' + getStatusClass(job.status) + '">' + job.status + '</button>' +
-                                         '<button class="run-btn" onclick="alert(\'Запуск пока не реализован\')">'+ buttonText +'</button>' +
+                                         '<button class="run-btn" onclick="playJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Запустить</button>' +
+                                         '<button class="retry-btn" onclick="alert(\'Перезапуск пока не реализован\')">Перезапустить</button>' +
+                                         '<button class="cancel-btn" onclick="alert(\'Отмена пока не реализована\')">Отменить</button>' +
                                        '</div></td>';
                         jobsTbody.appendChild(tr);
                     });
@@ -187,6 +197,35 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
         });
 
     } catch (err) { errorP.textContent = 'Ошибка: ' + err.message; errorP.style.display='block'; }
+}
+
+// Запуск jobs
+async function playJob(groupIdx, projIdx, projectId, jobId) {
+    const token = document.querySelector('input[name="token"]').value;
+    if (!token) { alert('Введите токен'); return; }
+
+    try {
+        const response = await fetch(
+            '/playjob?project_id=' + projectId +
+            '&job_id=' + jobId +
+            '&token=' + encodeURIComponent(token),
+            { method: 'POST' }
+        );
+
+        if (!response.ok) throw new Error('HTTP error ' + response.status);
+        const data = await response.json();
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+        } else {
+            alert('Джоба запущена!');
+            // через 5 секунд обновим пайплайн
+            setTimeout(() => {
+                loadPipeline(groupIdx, projIdx, projectId);
+            }, 5000);
+        }
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
 }
 </script>
 
