@@ -113,6 +113,23 @@ function getStatusClass(status) {
     }
 }
 
+function renderJobButtons(groupIdx, projIdx, projectId, job) {
+    let buttons = ''; 
+    if (job.status === 'manual') {
+        buttons += '<button class="run-btn" onclick="playJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Запустить</button>';
+    }
+
+    if (job.status === 'failed' || job.status === 'success') {
+        buttons += '<button class="retry-btn" onclick="alert(\'Перезапуск пока не реализован\')">Перезапустить</button>';
+    }
+
+    if (job.status === 'running') {
+        buttons += '<button class="cancel-btn" onclick="alert(\'Отмена пока не реализована\')">Отменить</button>';
+    }
+
+    return buttons;
+}
+
 async function loadPipeline(groupIdx, projIdx, projectId) {
     const select = document.getElementById('ref-' + groupIdx + '-' + projIdx);
     const ref = select.value;
@@ -149,9 +166,7 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
                                '<div class="job-line">' +
                                  '<span class="job-name">' + job.name + '</span>' +
                                  '<button class="' + getStatusClass(job.status) + '">' + job.status + '</button>' +
-                                 '<button class="run-btn" onclick="playJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Запустить</button>' +
-                                 '<button class="retry-btn" onclick="alert(\'Перезапуск пока не реализован\')">Перезапустить</button>' +
-                                 '<button class="cancel-btn" onclick="alert(\'Отмена пока не реализована\')">Отменить</button>' +
+                                 renderJobButtons(groupIdx, projIdx, projectId, job)
                                '</div></td>';
                 jobsTbody.appendChild(tr);
             });
@@ -183,9 +198,7 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
                                        '<div class="job-line">' +
                                          '<span class="job-name">' + job.name + '</span>' +
                                          '<button class="' + getStatusClass(job.status) + '">' + job.status + '</button>' +
-                                         '<button class="run-btn" onclick="playJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Запустить</button>' +
-                                         '<button class="retry-btn" onclick="alert(\'Перезапуск пока не реализован\')">Перезапустить</button>' +
-                                         '<button class="cancel-btn" onclick="alert(\'Отмена пока не реализована\')">Отменить</button>' +
+                                         renderJobButtons(groupIdx, projIdx, projectId, job)
                                        '</div></td>';
                         jobsTbody.appendChild(tr);
                     });
