@@ -20,6 +20,7 @@ select { min-width: 200px; }
 .status-failed { background-color: red; }
 .status-manual { background-color: orange; }
 .status-success { background-color: green; }
+.status-running { background-color: #007bff; }
 
 /* кнопка Запустить */
 .run-btn { padding: 2px 8px; margin-left: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid green; background: green; color: white; cursor: pointer; min-width: 90px; text-align: center; }
@@ -109,6 +110,7 @@ function getStatusClass(status) {
         case 'failed': return 'status-btn status-failed';
         case 'manual': return 'status-btn status-manual';
         case 'success': return 'status-btn status-success';
+        case 'running': return 'status-btn status-running'
         default: return 'status-btn';
     }
 }
@@ -123,7 +125,7 @@ function renderJobButtons(groupIdx, projIdx, projectId, job) {
         buttons += '<button class="retry-btn" onclick="alert(\'Перезапуск пока не реализован\')">Перезапустить</button>';
     }
 
-    if (job.status === 'running') {
+    if (job.status === 'running' || job.section === 'pending') {
         buttons += '<button class="cancel-btn" onclick="alert(\'Отмена пока не реализована\')">Отменить</button>';
     }
 
