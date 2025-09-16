@@ -22,6 +22,7 @@ type GroupInfo struct {
 	ID       int
 	Path     string
 	Projects []ProjectInfo
+	AllRefs  []string
 }
 
 type PageData struct {
@@ -91,6 +92,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 		rootGroupIDStr := strings.TrimSpace(r.FormValue("rootGroupID"))
 		rootGroupID, err := strconv.Atoi(rootGroupIDStr)
+		if err != nil {
+			data.Error = "Ошибка поиска группы: " + err.Error()
+			_ = pageTmpl.Execute(w, data)
+		}
 		currentID = rootGroupID
 
 		client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL(currentURL+"/api/v4"))
@@ -115,6 +120,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 		for _, g := range allGroups {
 			grp := GroupInfo{Name: g.Name, ID: g.ID, Path: g.FullPath}
+			allRefs := make(map[string]struct{})
 
 			projects, _, err := client.Groups.ListGroupProjects(g.ID, &gitlab.ListGroupProjectsOptions{})
 			if err != nil {
@@ -128,14 +134,20 @@ func handler(w http.ResponseWriter, r *http.Request) {
 				branches, _, _ := client.Branches.ListBranches(p.ID, &gitlab.ListBranchesOptions{})
 				for _, b := range branches {
 					prj.Refs = append(prj.Refs, b.Name)
+					allRefs[b.Name] = struct{}{}
 				}
 
 				tags, _, _ := client.Tags.ListTags(p.ID, &gitlab.ListTagsOptions{})
 				for _, t := range tags {
+					tagName := "tag:" + t.Name
 					prj.Refs = append(prj.Refs, "tag:"+t.Name)
+					allRefs[tagName] = struct{}{}
 				}
 
 				grp.Projects = append(grp.Projects, prj)
+			}
+			for ref := range allRefs {
+				grp.AllRefs = append(grp.AllRefs, ref)
 			}
 
 			data.Groups = append(data.Groups, grp)

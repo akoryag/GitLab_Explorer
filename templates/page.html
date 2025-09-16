@@ -75,7 +75,13 @@ select { min-width: 200px; }
         <table>
             <tr>
                 <th>Проект</th>
-                <th>Реф</th>
+                <th style="display:flex; justify-content: space-between; align-items: center;">
+                    Реф
+                    <select id="group-ref-{{$i}}" onchange="applyGroupRef('{{$i}}')">
+                        <option value="">— Массовый выбор —</option>
+                        {{range $r := $g.AllRefs}}<option>{{$r}}</option>{{end}}
+                    </select>
+                </th>
                 <th>Действие</th>
                 <th>Джоб / Bridge</th>
             </tr>
@@ -116,6 +122,24 @@ function toggleGroup(id) {
     content.style.display = isHidden ? "block" : "none";
     btn.textContent = isHidden ? "[−]" : "[+]";
 }
+// Глобальный выбор рефа в группе
+function applyGroupRef(groupIdx) {
+    const groupSelect = document.getElementById('group-ref-' + groupIdx);
+    const selectedRef = groupSelect.value;
+    if (!selectedRef) return;
+
+    const projectSelects = document.querySelectorAll('[id^="ref-' + groupIdx + '-"]');
+    projectSelects.forEach(sel => {
+        let hasRef = false;
+        for (let i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === selectedRef) {
+                hasRef = true;
+                break;
+            }
+        }
+        if (hasRef) sel.value = selectedRef;
+    });
+}
 
 function getStatusClass(status) {
     switch(status) {
@@ -126,7 +150,7 @@ function getStatusClass(status) {
         default: return 'status-btn';
     }
 }
-
+// Описание кнопок
 function renderJobButtons(groupIdx, projIdx, projectId, job) {
     let buttons = ''; 
     if (job.status === 'manual') {
