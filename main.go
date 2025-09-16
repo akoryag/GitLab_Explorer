@@ -67,6 +67,8 @@ func main() {
 	http.HandleFunc("/", handler)
 	http.HandleFunc("/pipeline", pipelineHandler)
 	http.HandleFunc("/playjob", playJobHandler)
+	http.HandleFunc("/retryjob", retryJobHandler)
+	http.HandleFunc("/canceljob", cancelJobHandler)
 	log.Println("Сервер запущен на http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -282,6 +284,84 @@ func playJobHandler(w http.ResponseWriter, r *http.Request) {
 	_, _, err = client.Jobs.PlayJob(projectIDInt, jobIDInt, &gitlab.PlayJobOptions{})
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка запуска джобы: " + err.Error()})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func retryJobHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if currentToken == "" {
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Токен не задан"})
+		return
+	}
+
+	projectID := r.URL.Query().Get("project_id")
+	if projectID == "" {
+		json.NewEncoder(w).Encode(map[string]string{"error": "ID проекта не предоставлен"})
+		return
+	}
+
+	jobID := r.URL.Query().Get("job_id")
+	if jobID == "" {
+		json.NewEncoder(w).Encode(map[string]string{"error": "ID джобы не предоставлен"})
+		return
+	}
+
+	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка создания клиента: " + err.Error()})
+		return
+	}
+
+	// Переапускаем джобу
+	jobIDInt, _ := strconv.Atoi(jobID)
+	projectIDInt, _ := strconv.Atoi(projectID)
+
+	_, _, err = client.Jobs.RetryJob(projectIDInt, jobIDInt)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка перезапуска джобы: " + err.Error()})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func cancelJobHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if currentToken == "" {
+		json.NewEncoder(w).Encode(PipelineInfo{Error: "Токен не задан"})
+		return
+	}
+
+	projectID := r.URL.Query().Get("project_id")
+	if projectID == "" {
+		json.NewEncoder(w).Encode(map[string]string{"error": "ID проекта не предоставлен"})
+		return
+	}
+
+	jobID := r.URL.Query().Get("job_id")
+	if jobID == "" {
+		json.NewEncoder(w).Encode(map[string]string{"error": "ID джобы не предоставлен"})
+		return
+	}
+
+	client, err := gitlab.NewClient(currentToken, gitlab.WithBaseURL("https://gitlab.ru/api/v4"))
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка создания клиента: " + err.Error()})
+		return
+	}
+
+	// Отменяем джобу
+	jobIDInt, _ := strconv.Atoi(jobID)
+	projectIDInt, _ := strconv.Atoi(projectID)
+
+	_, _, err = client.Jobs.CancelJob(projectIDInt, jobIDInt)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка отмены джобы: " + err.Error()})
 		return
 	}
 

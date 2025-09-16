@@ -121,12 +121,12 @@ function renderJobButtons(groupIdx, projIdx, projectId, job) {
         buttons += '<button class="run-btn" onclick="playJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Запустить</button>';
     }
 
-    if (job.status === 'failed' || job.status === 'success') {
-        buttons += '<button class="retry-btn" onclick="alert(\'Перезапуск пока не реализован\')">Перезапустить</button>';
+    if (job.status === 'failed' || job.status === 'success' || job.status === 'canceled') {
+        buttons += '<button class="retry-btn" onclick="retryJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Перезапустить</button>';
     }
 
-    if (job.status === 'running' || job.section === 'pending') {
-        buttons += '<button class="cancel-btn" onclick="alert(\'Отмена пока не реализована\')">Отменить</button>';
+    if (job.status === 'running' || job.status === 'pending') {
+        buttons += '<button class="cancel-btn" onclick="cancelJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Отменить</button>';
     }
 
     return buttons;
@@ -226,10 +226,49 @@ async function playJob(groupIdx, projIdx, projectId, jobId) {
             alert('Ошибка: ' + data.error);
         } else {
             alert('Джоба запущена!');
-            // через 5 секунд обновим пайплайн
-            setTimeout(() => {
-                loadPipeline(groupIdx, projIdx, projectId);
-            }, 5000);
+            loadPipeline(groupIdx, projIdx, projectId);
+        }
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+async function retryJob(groupIdx, projIdx, projectId, jobId) {
+    try {
+        const response = await fetch(
+            '/retryjob?project_id=' + projectId +
+            '&job_id=' + jobId,
+            { method: 'POST' }
+        );
+
+        if (!response.ok) throw new Error('HTTP error ' + response.status);
+        const data = await response.json();
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+        } else {
+            alert('Джоба перезапущена!');
+            loadPipeline(groupIdx, projIdx, projectId);
+        }
+    } catch (err) {
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+async function cancelJob(groupIdx, projIdx, projectId, jobId) {
+    try {
+        const response = await fetch(
+            '/canceljob?project_id=' + projectId +
+            '&job_id=' + jobId,
+            { method: 'POST' }
+        );
+
+        if (!response.ok) throw new Error('HTTP error ' + response.status);
+        const data = await response.json();
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+        } else {
+            alert('Джоба отменена!');
+            loadPipeline(groupIdx, projIdx, projectId);
         }
     } catch (err) {
         alert('Ошибка: ' + err.message);
