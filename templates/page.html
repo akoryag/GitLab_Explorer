@@ -255,8 +255,9 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
 async function playJob(groupIdx, projIdx, projectId, jobId) {
     try {
         const response = await fetch(
-            '/playjob?project_id=' + projectId +
-            '&job_id=' + jobId,
+            '/job?project_id=' + projectId +
+            '&job_id=' + jobId +
+            '&action=play',
             { method: 'POST' }
         );
 
@@ -276,8 +277,9 @@ async function playJob(groupIdx, projIdx, projectId, jobId) {
 async function retryJob(groupIdx, projIdx, projectId, jobId) {
     try {
         const response = await fetch(
-            '/retryjob?project_id=' + projectId +
-            '&job_id=' + jobId,
+            '/job?project_id=' + projectId +
+            '&job_id=' + jobId +
+            '&action=retry',
             { method: 'POST' }
         );
 
@@ -297,8 +299,9 @@ async function retryJob(groupIdx, projIdx, projectId, jobId) {
 async function cancelJob(groupIdx, projIdx, projectId, jobId) {
     try {
         const response = await fetch(
-            '/canceljob?project_id=' + projectId +
-            '&job_id=' + jobId,
+            '/job?project_id=' + projectId +
+            '&job_id=' + jobId +
+            '&action=cancel',
             { method: 'POST' }
         );
 
