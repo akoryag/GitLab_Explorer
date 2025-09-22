@@ -75,7 +75,7 @@ select { min-width: 200px; }
         <table>
             <tr>
                 <th>Проект</th>
-                <th style="display:flex; justify-content: space-between; align-items: center;">
+                <th>
                     Реф
                     <select id="group-ref-{{$i}}" onchange="applyGroupRef('{{$i}}')">
                         <option value="">— Массовый выбор —</option>
@@ -83,7 +83,10 @@ select { min-width: 200px; }
                     </select>
                 </th>
                 <th>Действие</th>
-                <th>Джоб / Bridge</th>
+                <th>
+                    Джоб / Bridge
+                    <input type="text" id="searchJobs-{{$i}}" size="30" placeholder="Поиск jobs" oninput="filterJobs('{{$i}}')"> <br><br>
+                </th>
             </tr>
             {{range $j, $p := $g.Projects}}
             <tr>
@@ -243,6 +246,7 @@ async function loadPipeline(groupIdx, projIdx, projectId) {
                 });
             }
         });
+        filterJobs(groupIdx);
 
     } catch (err) { errorP.textContent = 'Ошибка: ' + err.message; errorP.style.display='block'; }
 }
@@ -309,6 +313,54 @@ async function cancelJob(groupIdx, projIdx, projectId, jobId) {
     } catch (err) {
         alert('Ошибка: ' + err.message);
     }
+}
+
+function filterJobs(groupIdx) {
+    const input = document.getElementById('searchJobs-' + groupIdx);
+    if (!input) return;
+    const search = input.value.trim().toLowerCase();
+    const tbodies = document.querySelectorAll('[id^="jobs-' + groupIdx + '-"]');
+
+    if (search === '') {
+        tbodies.forEach(tbody => {
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => row.style.display = '');
+        });
+        return;
+    }
+
+    tbodies.forEach(tbody => {
+        const allRows = Array.from(tbody.querySelectorAll('tr'));
+        let currentStage = null;
+        let hasVisibleJob = false;
+
+        allRows.forEach(row => {
+            if (row.classList.contains('stage-row')) {
+                if (currentStage) {
+                    currentStage.style.display = hasVisibleJob ? '' : 'none';
+                }
+                currentStage = row;
+                hasVisibleJob = false;
+                currentStage.style.display = '';
+            } else {
+                const jobLine = row.querySelector('.job-line');
+                if (jobLine) {
+                    const nameEl = jobLine.querySelector('.job-name');
+                    const name = nameEl ? nameEl.textContent.toLowerCase() : '';
+                    const matches = name.includes(search);
+                    row.style.display = matches ? '' : 'none';
+                    if (matches) hasVisibleJob = true;
+                } else {
+                    row.style.display = '';
+                    hasVisibleJob = true;
+                }
+            }
+        });
+
+        if (currentStage) {
+            currentStage.style.display = hasVisibleJob ? '' : 'none';
+        }
+    });
 }
 </script>
 
