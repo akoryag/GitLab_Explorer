@@ -44,6 +44,7 @@ git clone https://github.com/akoryag/gitLab-explorer.git
 cd gitlab-explorer
 
 # Устанавливаем зависимости
+go mod init gitLab-explorer
 go mod tidy
 
 # Запуск приложения
