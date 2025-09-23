@@ -10,14 +10,14 @@
 
   {{if not .Loaded}}
   <form method="POST" action="/">
-    <label for="gitlabURL">Gitlab URL:</label><br>
-    <input id="gitlabURL" type="text" name="gitlabURL" required><br><br>
+    <label>Gitlab URL</label><br><br>
+    <input type="text" name="gitlabURL" size="30" required><br><br>
 
-    <label for="token">GitLab OAuth Token:</label><br>
-    <input id="token" type="password" name="token" required><br><br>
+    <label>GitLab OAuth Token</label><br><br>
+    <input type="password" name="token" size="30" required><br><br>
 
-    <label for="rootGroupID">Root Group ID:</label><br>
-    <input id="rootGroupID" type="number" name="rootGroupID" min="0" step="1" required><br><br>
+    <label>Root Group ID</label><br><br>
+    <input type="number" name="rootGroupID" size="30" min="0" step="1" required><br><br>
 
     <button type="submit" class="primary-btn">Загрузить</button>
   </form>
@@ -32,58 +32,56 @@
   {{end}}
 
   {{range $i, $g := .Groups}}
-  <section class="group">
-    <header class="group-header" onclick="toggleGroup('group{{$i}}')">
+  <div class="group">
+    <div class="group-header" onclick="toggleGroup('group{{$i}}')">
       <span id="btn-group{{$i}}" class="toggle-btn">[+]</span>
       <h2>Группа: {{$g.Name}} ({{$g.Path}})</h2>
-    </header>
+    </div>
 
     <div id="group{{$i}}" class="group-content">
       <table>
-        <thead>
-          <tr>
-            <th>Проект</th>
-            <th>
-              Реф
-              <select id="group-ref-{{$i}}" onchange="applyGroupRef('{{$i}}')">
-                <option value="">— Массовый выбор —</option>
-                {{range $r := $g.AllRefs}}<option>{{$r}}</option>{{end}}
-              </select>
-            </th>
-            <th>Действие</th>
-            <th>
-              Джоб / Bridge<br>
-              <input type="text" id="searchJobs-{{$i}}" placeholder="Поиск jobs" oninput="filterJobs('{{$i}}')">
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {{range $j, $p := $g.Projects}}
-          <tr>
-            <td>{{$p.Name}}</td>
-            <td>
-              <select id="ref-{{$i}}-{{$j}}">
-                {{range .Refs}}<option>{{.}}</option>{{else}}<option>—</option>{{end}}
-              </select>
-            </td>
-            <td>
-              <button type="button" onclick="loadPipeline('{{$i}}','{{$j}}','{{$p.ID}}')">Загрузить пайплайн</button>
-            </td>
-            <td>
-              <div id="pipeline-{{$i}}-{{$j}}" class="pipeline-section">
-                <p id="pipeline-error-{{$i}}-{{$j}}" class="pipeline-error" style="display:none;"></p>
-                <table><tbody id="jobs-{{$i}}-{{$j}}"></tbody></table>
-              </div>
-            </td>
-          </tr>
-          {{end}}
-          {{if not $g.Projects}}
-          <tr><td colspan="4">Нет проектов</td></tr>
-          {{end}}
-        </tbody>
+        <tr>
+          <th>Проект</th>
+          <th>
+            Реф
+            <select id="group-ref-{{$i}}" onchange="applyGroupRef('{{$i}}')">
+              <option value="">— Массовый выбор —</option>
+              {{range $r := $g.AllRefs}}<option>{{$r}}</option>{{end}}
+            </select>
+          </th>
+          <th>Действие</th>
+          <th>
+            Джоб / Bridge
+            <input type="text" id="searchJobs-{{$i}}" size="30" placeholder="Поиск jobs" oninput="filterJobs('{{$i}}')">
+          </th>
+        </tr>
+        {{range $j, $p := $g.Projects}}
+        <tr>
+          <td>{{.Name}}</td>
+          <td>
+            <select id="ref-{{$i}}-{{$j}}">
+              {{range .Refs}}<option>{{.}}</option>{{else}}<option>—</option>{{end}}
+            </select>
+          </td>
+          <td>
+            <button type="button" onclick="loadPipeline('{{$i}}', '{{$j}}', '{{$p.ID}}')" class="retry-btn">Загрузить пайплайн</button>
+          </td>
+          <td>
+            <div id="pipeline-{{$i}}-{{$j}}" class="pipeline-section">
+              <p class="pipeline-error" id="pipeline-error-{{$i}}-{{$j}}" style="display:none;"></p>
+              <table>
+                <tbody id="jobs-{{$i}}-{{$j}}"></tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+        {{end}}
+        {{if not $g.Projects}}
+        <tr><td colspan="4">Нет проектов</td></tr>
+        {{end}}
       </table>
     </div>
-  </section>
+  </div>
   {{end}}
 
   <script src="/static/app.js"></script>
