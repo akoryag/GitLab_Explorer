@@ -1,371 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-<meta charset="utf-8">
-<title>GitLab Explorer</title>
-<style>
-body { font-family: sans-serif; margin: 20px auto; max-width: 70%; }
-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-th, td { border: 1px solid #ccc; padding: 6px; text-align: left; vertical-align: top; }
-th { background: #f5f5f5; }
-select { min-width: 200px; }
-.error { color: red; }
-.group { margin-top: 20px; border: 1px solid #ddd; padding: 10px; border-radius: 8px; }
-.group-header { cursor: pointer; display: flex; align-items: center; gap: 8px; }
-.toggle-btn { margin-right: 8px; font-weight: bold; cursor: pointer; user-select: none; }
-.pipeline-section { margin: 0; padding: 0; border: none; display: none; }
-.pipeline-error { color: red; }
-.stage-row { background: #f9f9f9; }
-.status-btn { padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; color: white; border: none; cursor: default; min-width: 70px; text-align: center; }
-.status-failed { background-color: red; }
-.status-manual { background-color: orange; }
-.status-success { background-color: green; }
-.status-running { background-color: #007bff; }
-
-/* кнопка Запустить */
-.run-btn { padding: 2px 8px; margin-left: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid green; background: green; color: white; cursor: pointer; min-width: 90px; text-align: center; }
-.run-btn:hover { background: #0056b3; }
-
-/* кнопка Перезапустить */
-.retry-btn { padding: 2px 8px; margin-left: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid #007bff; background: #007bff; color: white; cursor: pointer; min-width: 90px; text-align: center; }
-.retry-btn:hover { background: #0056b3; }
-
-/* кнопка Отмена */
-.cancel-btn { padding: 2px 8px; margin-left: 6px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid red; background: red; color: white; cursor: pointer; min-width: 90px; text-align: center; }
-.cancel-btn:hover { background: red; }
-
-/* общий контейнер для выравнивания */
-.job-line { display: flex; align-items: center; gap: 8px; }
-.job-name { flex: 1; }
-</style>
+  <meta charset="utf-8">
+  <title>GitLab Explorer</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<h1>GitLab Explorer</h1>
+  <h1>GitLab Explorer</h1>
 
-{{if not .Loaded}}
-<form method="POST" action="/">
-    <label>Gitlab URL:&nbsp;</label> <br><br>
-    <input type="text" name="gitlabURL" size="30" required> <br><br>
+  {{if not .Loaded}}
+  <form method="POST" action="/">
+    <label for="gitlabURL">Gitlab URL:</label><br>
+    <input id="gitlabURL" type="text" name="gitlabURL" required><br><br>
 
-    <label>GitLab OAuth Token:&nbsp;</label> <br><br>
-    <input type="password" name="token" size="30" required> <br><br>
+    <label for="token">GitLab OAuth Token:</label><br>
+    <input id="token" type="password" name="token" required><br><br>
 
-    <label>Root Group ID:&nbsp;</label> <br><br>
-    <input type="number" name="rootGroupID" size="30" min="0" step="1" required> <br><br>
-    <button type="submit">Загрузить</button>
-</form>
-{{else}}
-<form method="POST" action="/logout">
-    <button type="logout">Выйти</button>
-</form>
-{{end}}
+    <label for="rootGroupID">Root Group ID:</label><br>
+    <input id="rootGroupID" type="number" name="rootGroupID" min="0" step="1" required><br><br>
 
-{{if .Error}}
-<p class="error">Ошибка: {{.Error}}</p>
-{{end}}
+    <button type="submit" class="primary-btn">Загрузить</button>
+  </form>
+  {{else}}
+  <form method="POST" action="/logout">
+    <button type="submit" class="primary-btn">Выйти</button>
+  </form>
+  {{end}}
 
-{{range $i, $g := .Groups}}
-<div class="group">
-    <div class="group-header" onclick="toggleGroup('group{{$i}}')">
-        <span id="btn-group{{$i}}" class="toggle-btn">[+]</span>
-        <h2 style="margin:0">Группа: {{$g.Name}} ({{$g.Path}})</h2>
+  {{if .Error}}
+  <p class="error">Ошибка: {{.Error}}</p>
+  {{end}}
+
+  {{range $i, $g := .Groups}}
+  <section class="group">
+    <header class="group-header" onclick="toggleGroup('group{{$i}}')">
+      <span id="btn-group{{$i}}" class="toggle-btn">[+]</span>
+      <h2>Группа: {{$g.Name}} ({{$g.Path}})</h2>
+    </header>
+
+    <div id="group{{$i}}" class="group-content">
+      <table>
+        <thead>
+          <tr>
+            <th>Проект</th>
+            <th>
+              Реф
+              <select id="group-ref-{{$i}}" onchange="applyGroupRef('{{$i}}')">
+                <option value="">— Массовый выбор —</option>
+                {{range $r := $g.AllRefs}}<option>{{$r}}</option>{{end}}
+              </select>
+            </th>
+            <th>Действие</th>
+            <th>
+              Джоб / Bridge<br>
+              <input type="text" id="searchJobs-{{$i}}" placeholder="Поиск jobs" oninput="filterJobs('{{$i}}')">
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range $j, $p := $g.Projects}}
+          <tr>
+            <td>{{$p.Name}}</td>
+            <td>
+              <select id="ref-{{$i}}-{{$j}}">
+                {{range .Refs}}<option>{{.}}</option>{{else}}<option>—</option>{{end}}
+              </select>
+            </td>
+            <td>
+              <button type="button" onclick="loadPipeline('{{$i}}','{{$j}}','{{$p.ID}}')">Загрузить пайплайн</button>
+            </td>
+            <td>
+              <div id="pipeline-{{$i}}-{{$j}}" class="pipeline-section">
+                <p id="pipeline-error-{{$i}}-{{$j}}" class="pipeline-error" style="display:none;"></p>
+                <table><tbody id="jobs-{{$i}}-{{$j}}"></tbody></table>
+              </div>
+            </td>
+          </tr>
+          {{end}}
+          {{if not $g.Projects}}
+          <tr><td colspan="4">Нет проектов</td></tr>
+          {{end}}
+        </tbody>
+      </table>
     </div>
+  </section>
+  {{end}}
 
-    <div id="group{{$i}}" class="group-content" style="display:none; margin-top:8px;">
-        <table>
-            <tr>
-                <th>Проект</th>
-                <th>
-                    Реф
-                    <select id="group-ref-{{$i}}" onchange="applyGroupRef('{{$i}}')">
-                        <option value="">— Массовый выбор —</option>
-                        {{range $r := $g.AllRefs}}<option>{{$r}}</option>{{end}}
-                    </select>
-                </th>
-                <th>Действие</th>
-                <th>
-                    Джоб / Bridge
-                    <input type="text" id="searchJobs-{{$i}}" size="30" placeholder="Поиск jobs" oninput="filterJobs('{{$i}}')"> <br><br>
-                </th>
-            </tr>
-            {{range $j, $p := $g.Projects}}
-            <tr>
-                <td>{{.Name}}</td>
-                <td>
-                    <select id="ref-{{$i}}-{{$j}}">
-                        {{range .Refs}}<option>{{.}}</option>{{else}}<option>—</option>{{end}}
-                    </select>
-                </td>
-                <td>
-                    <button onclick="loadPipeline('{{$i}}', '{{$j}}', '{{$p.ID}}')">Загрузить пайплайн</button>
-                </td>
-                <td>
-                    <div id="pipeline-{{$i}}-{{$j}}" class="pipeline-section">
-                        <p class="pipeline-error" id="pipeline-error-{{$i}}-{{$j}}" style="display:none;"></p>
-                        <table style="width:100%;">
-                            <tbody id="jobs-{{$i}}-{{$j}}"></tbody>
-                        </table>
-                    </div>
-                </td>
-            </tr>
-            {{end}}
-            {{if not $g.Projects}}
-            <tr><td colspan="4">Нет проектов</td></tr>
-            {{end}}
-        </table>
-    </div>
-</div>
-{{end}}
-
-<script>
-function toggleGroup(id) {
-    const content = document.getElementById(id);
-    const btn = document.getElementById("btn-" + id);
-    const isHidden = window.getComputedStyle(content).display === "none";
-    content.style.display = isHidden ? "block" : "none";
-    btn.textContent = isHidden ? "[−]" : "[+]";
-}
-// Глобальный выбор рефа в группе
-function applyGroupRef(groupIdx) {
-    const groupSelect = document.getElementById('group-ref-' + groupIdx);
-    const selectedRef = groupSelect.value;
-    if (!selectedRef) return;
-
-    const projectSelects = document.querySelectorAll('[id^="ref-' + groupIdx + '-"]');
-    projectSelects.forEach(sel => {
-        let hasRef = false;
-        for (let i = 0; i < sel.options.length; i++) {
-            if (sel.options[i].value === selectedRef) {
-                hasRef = true;
-                break;
-            }
-        }
-        if (hasRef) sel.value = selectedRef;
-    });
-}
-
-function getStatusClass(status) {
-    switch(status) {
-        case 'failed': return 'status-btn status-failed';
-        case 'manual': return 'status-btn status-manual';
-        case 'success': return 'status-btn status-success';
-        case 'running': return 'status-btn status-running'
-        default: return 'status-btn';
-    }
-}
-// Описание кнопок
-function renderJobButtons(groupIdx, projIdx, projectId, job) {
-    let buttons = ''; 
-    if (job.status === 'manual') {
-        buttons += '<button class="run-btn" onclick="playJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Запустить</button>';
-    }
-
-    if (job.status === 'failed' || job.status === 'success' || job.status === 'canceled') {
-        buttons += '<button class="retry-btn" onclick="retryJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Перезапустить</button>';
-    }
-
-    if (job.status === 'running' || job.status === 'pending') {
-        buttons += '<button class="cancel-btn" onclick="cancelJob(' + groupIdx + ',' + projIdx + ',' + projectId + ',' + job.id + ')">Отменить</button>';
-    }
-
-    return buttons;
-}
-
-async function loadPipeline(groupIdx, projIdx, projectId) {
-    const select = document.getElementById('ref-' + groupIdx + '-' + projIdx);
-    const ref = select.value;
-    if (ref === '—') { alert('Выберите реф'); return; }
-
-    const section = document.getElementById('pipeline-' + groupIdx + '-' + projIdx);
-    const errorP = document.getElementById('pipeline-error-' + groupIdx + '-' + projIdx);
-    const jobsTbody = document.getElementById('jobs-' + groupIdx + '-' + projIdx);
-
-    section.style.display = 'block';
-    errorP.style.display = 'none';
-    jobsTbody.innerHTML = '';
-
-    try {
-        const response = await fetch('/pipeline?project_id=' + projectId + '&ref=' + encodeURIComponent(ref));
-        if (!response.ok) throw new Error('HTTP error ' + response.status);
-        const data = await response.json();
-        if (data.error) { errorP.textContent = data.error; errorP.style.display = 'block'; return; }
-        if (!data.jobs) data.jobs = []; if (!data.bridges) data.bridges = [];
-
-        const stages = {};
-        data.jobs.forEach(job => { if(!stages[job.stage]) stages[job.stage]=[]; stages[job.stage].push(job); });
-
-        // обычные jobs
-        Object.keys(stages).forEach(stage => {
-            const stageTr = document.createElement('tr');
-            stageTr.className = 'stage-row'; 
-            stageTr.innerHTML = '<td><b>Stage:</b> ' + stage + '</td>';
-            jobsTbody.appendChild(stageTr);
-
-            stages[stage].forEach(job => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = '<td style="padding-left:20px;">' +
-                               '<div class="job-line">' +
-                                 '<span class="job-name">' + job.name + '</span>' +
-                                 '<button class="' + getStatusClass(job.status) + '">' + job.status + '</button>' +
-                                 renderJobButtons(groupIdx, projIdx, projectId, job)
-                               '</div></td>';
-                jobsTbody.appendChild(tr);
-            });
-        });
-
-        // bridges и downstream jobs
-        data.bridges.forEach((bridge) => {
-            const bridgeTr = document.createElement('tr');
-            bridgeTr.className = 'stage-row';
-            bridgeTr.innerHTML = '<td><b>Stage:</b> ' + bridge.name + '</td>';
-            jobsTbody.appendChild(bridgeTr);
-
-            if (bridge.downstream_jobs && bridge.downstream_jobs.length > 0) {
-                const bStages = {};
-                bridge.downstream_jobs.forEach(job => {
-                    if (!bStages[job.stage]) bStages[job.stage] = [];
-                    bStages[job.stage].push(job);
-                });
-
-                Object.keys(bStages).reverse().forEach(stage => {
-                    const stageTrDS = document.createElement('tr');
-                    stageTrDS.className = 'stage-row';
-                    stageTrDS.innerHTML = '<td style="padding-left:10px;"><b>Stage:</b> ' + stage + '</td>';
-                    jobsTbody.appendChild(stageTrDS);
-
-                    bStages[stage].forEach(job => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = '<td style="padding-left:30px;">' +
-                                       '<div class="job-line">' +
-                                         '<span class="job-name">' + job.name + '</span>' +
-                                         '<button class="' + getStatusClass(job.status) + '">' + job.status + '</button>' +
-                                         renderJobButtons(groupIdx, projIdx, projectId, job)
-                                       '</div></td>';
-                        jobsTbody.appendChild(tr);
-                    });
-                });
-            }
-        });
-        filterJobs(groupIdx);
-
-    } catch (err) { errorP.textContent = 'Ошибка: ' + err.message; errorP.style.display='block'; }
-}
-
-// Запуск jobs
-async function playJob(groupIdx, projIdx, projectId, jobId) {
-    try {
-        const response = await fetch(
-            '/job?project_id=' + projectId +
-            '&job_id=' + jobId +
-            '&action=play',
-            { method: 'POST' }
-        );
-
-        if (!response.ok) throw new Error('HTTP error ' + response.status);
-        const data = await response.json();
-        if (data.error) {
-            alert('Ошибка: ' + data.error);
-        } else {
-            alert('Джоба запущена!');
-            loadPipeline(groupIdx, projIdx, projectId);
-        }
-    } catch (err) {
-        alert('Ошибка: ' + err.message);
-    }
-}
-
-async function retryJob(groupIdx, projIdx, projectId, jobId) {
-    try {
-        const response = await fetch(
-            '/job?project_id=' + projectId +
-            '&job_id=' + jobId +
-            '&action=retry',
-            { method: 'POST' }
-        );
-
-        if (!response.ok) throw new Error('HTTP error ' + response.status);
-        const data = await response.json();
-        if (data.error) {
-            alert('Ошибка: ' + data.error);
-        } else {
-            alert('Джоба перезапущена!');
-            loadPipeline(groupIdx, projIdx, projectId);
-        }
-    } catch (err) {
-        alert('Ошибка: ' + err.message);
-    }
-}
-
-async function cancelJob(groupIdx, projIdx, projectId, jobId) {
-    try {
-        const response = await fetch(
-            '/job?project_id=' + projectId +
-            '&job_id=' + jobId +
-            '&action=cancel',
-            { method: 'POST' }
-        );
-
-        if (!response.ok) throw new Error('HTTP error ' + response.status);
-        const data = await response.json();
-        if (data.error) {
-            alert('Ошибка: ' + data.error);
-        } else {
-            alert('Джоба отменена!');
-            loadPipeline(groupIdx, projIdx, projectId);
-        }
-    } catch (err) {
-        alert('Ошибка: ' + err.message);
-    }
-}
-
-function filterJobs(groupIdx) {
-    const input = document.getElementById('searchJobs-' + groupIdx);
-    if (!input) return;
-    const search = input.value.trim().toLowerCase();
-    const tbodies = document.querySelectorAll('[id^="jobs-' + groupIdx + '-"]');
-
-    if (search === '') {
-        tbodies.forEach(tbody => {
-            const rows = tbody.querySelectorAll('tr');
-            rows.forEach(row => row.style.display = '');
-        });
-        return;
-    }
-
-    tbodies.forEach(tbody => {
-        const allRows = Array.from(tbody.querySelectorAll('tr'));
-        let currentStage = null;
-        let hasVisibleJob = false;
-
-        allRows.forEach(row => {
-            if (row.classList.contains('stage-row')) {
-                if (currentStage) {
-                    currentStage.style.display = hasVisibleJob ? '' : 'none';
-                }
-                currentStage = row;
-                hasVisibleJob = false;
-                currentStage.style.display = '';
-            } else {
-                const jobLine = row.querySelector('.job-line');
-                if (jobLine) {
-                    const nameEl = jobLine.querySelector('.job-name');
-                    const name = nameEl ? nameEl.textContent.toLowerCase() : '';
-                    const matches = name.includes(search);
-                    row.style.display = matches ? '' : 'none';
-                    if (matches) hasVisibleJob = true;
-                } else {
-                    row.style.display = '';
-                    hasVisibleJob = true;
-                }
-            }
-        });
-
-        if (currentStage) {
-            currentStage.style.display = hasVisibleJob ? '' : 'none';
-        }
-    });
-}
-</script>
-
+  <script src="/static/app.js"></script>
 </body>
 </html>

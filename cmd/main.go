@@ -22,6 +22,9 @@ func main() {
 	mux.Handle("/pipeline", appCtx.PipelineHandler())
 	mux.Handle("/job", appCtx.HandleJobAction())
 
+	fs := http.FileServer(http.Dir("static"))
+	mux.Handle("/static/", http.StripPrefix("/static/", fs))
+
 	log.Println("Сервер запущен на http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }

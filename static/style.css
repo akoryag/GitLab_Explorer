@@ -1,0 +1,168 @@
+body {
+  font-family: sans-serif;
+  margin: 20px auto;
+  max-width: 70%;
+  line-height: 1.5;
+}
+
+h1 {
+  margin-bottom: 1rem;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 10px;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 6px;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #f5f5f5;
+}
+
+select {
+  min-width: 200px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"] {
+  padding: 4px;
+  font-size: 14px;
+}
+
+button {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.primary-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.error {
+  color: red;
+  margin-top: 10px;
+}
+
+/* Groups */
+.group {
+  margin-top: 16px;
+  border: 0.5px solid #ccc;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.group-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-btn {
+  margin-right: 8px;
+  font-weight: bold;
+  user-select: none;
+}
+
+.group-content {
+  margin-top: 6px;
+  display: none;
+}
+
+/* Pipelines */
+.pipeline-section {
+  display: none;
+}
+
+.pipeline-error {
+  color: red;
+}
+
+/* Job rows */
+.stage-row {
+  background: #f9f9f9;
+}
+
+.job-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-name {
+  flex: 1;
+}
+
+/* Statuses */
+.status-btn {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  border: none;
+  min-width: 70px;
+  text-align: center;
+}
+
+.status-failed { background-color: red; }
+.status-manual { background-color: orange; }
+.status-success { background-color: green; }
+.status-running { background-color: #007bff; }
+
+/* Action buttons (унифицировано со статусными) */
+.run-btn,
+.retry-btn,
+.cancel-btn {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  min-width: 70px;
+  text-align: center;
+  color: white;
+}
+
+.run-btn {
+  border: 1px solid green;
+  background: green;
+}
+
+.run-btn:hover {
+  background: #0056b3;
+}
+
+.retry-btn {
+  border: 1px solid #007bff;
+  background: #007bff;
+}
+
+.retry-btn:hover {
+  background: #0056b3;
+}
+
+.cancel-btn {
+  border: 1px solid red;
+  background: red;
+}
+
+.cancel-btn:hover {
+  background: darkred;
+}
