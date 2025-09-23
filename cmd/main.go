@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	app "GitLab_Explorer/internal"
+	app "gitLab-explorer/internal"
 )
 
 func main() {
