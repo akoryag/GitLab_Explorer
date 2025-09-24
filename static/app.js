@@ -221,8 +221,8 @@ function toggleAllProjects(groupIdx) {
   const headerCheckbox = document.getElementById(`header-checkbox-${groupIdx}`);
   const projectCheckboxes = document.querySelectorAll(`.project-checkbox[data-group="${groupIdx}"]`);
   
-  const isChecked = headerCheckbox ? headerCheckbox.checked : selectAllCheckbox.checked;
-  
+  const isChecked = headerCheckbox.checked;
+    
   projectCheckboxes.forEach(checkbox => {
     checkbox.checked = isChecked;
   });
@@ -233,19 +233,30 @@ function toggleAllProjects(groupIdx) {
   }
 }
 
-async function loadSelectedPipelines(groupIdx) {
-  const selected = document.querySelectorAll(
-    `.project-checkbox[data-group="${groupIdx}"]:checked`
+function getSelectedProjects(groupIdx) {
+  return Array.from(
+    document.querySelectorAll(`.project-checkbox[data-group="${groupIdx}"]:checked`)
   );
+}
+
+async function loadSelectedPipelines(groupIdx) {
+  const selected = getSelectedProjects(groupIdx);
 
   if (!selected.length) {
     alert("Выберите хотя бы один проект");
     return;
   }
 
-  for (const checkbox of selected) {
-    const projIdx = checkbox.dataset.project;
-    const projectId = checkbox.dataset.projectid;
-    await loadPipeline(groupIdx, projIdx, projectId);
-  }
+  await Promise.all(
+    selected.map(cb => {
+      const projIdx = cb.dataset.project;
+      const projectId = cb.dataset.projectid;
+      return loadPipeline(groupIdx, projIdx, projectId);
+    })
+  );
+}
+
+function clearAllPipelines() {
+  const allJobs = document.querySelectorAll('[id^="jobs-"]');
+  allJobs.forEach(tbody => tbody.innerHTML = '');
 }
