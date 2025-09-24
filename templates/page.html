@@ -39,8 +39,12 @@
     </div>
 
     <div id="group{{$i}}" class="group-content">
+      <button type="button" onclick="loadSelectedPipelines('{{$i}}')" class="retry-btn" style="margin-left: 5px; margin-bottom: 10px;">Загрузить выбранные</button>
       <table>
         <tr>
+          <th width="30px">
+            <input type="checkbox" id="header-checkbox-{{$i}}" onchange="toggleAllProjects('{{$i}}')">
+          </th>
           <th>Проект</th>
           <th>
             Реф
@@ -57,6 +61,9 @@
         </tr>
         {{range $j, $p := $g.Projects}}
         <tr>
+          <td>
+            <input type="checkbox" id="project-{{$i}}-{{$j}}" class="project-checkbox" data-group="{{$i}}" data-project="{{$j}}" data-projectid="{{$p.ID}}">
+          </td>
           <td>{{.Name}}</td>
           <td>
             <select id="ref-{{$i}}-{{$j}}" style="width: 250px;">

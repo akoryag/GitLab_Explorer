@@ -216,3 +216,36 @@ function filterJobs(groupIdx) {
     }
   });
 }
+
+function toggleAllProjects(groupIdx) {
+  const headerCheckbox = document.getElementById(`header-checkbox-${groupIdx}`);
+  const projectCheckboxes = document.querySelectorAll(`.project-checkbox[data-group="${groupIdx}"]`);
+  
+  const isChecked = headerCheckbox ? headerCheckbox.checked : selectAllCheckbox.checked;
+  
+  projectCheckboxes.forEach(checkbox => {
+    checkbox.checked = isChecked;
+  });
+  
+  if (headerCheckbox && selectAllCheckbox) {
+    headerCheckbox.checked = isChecked;
+    selectAllCheckbox.checked = isChecked;
+  }
+}
+
+async function loadSelectedPipelines(groupIdx) {
+  const selected = document.querySelectorAll(
+    `.project-checkbox[data-group="${groupIdx}"]:checked`
+  );
+
+  if (!selected.length) {
+    alert("Выберите хотя бы один проект");
+    return;
+  }
+
+  for (const checkbox of selected) {
+    const projIdx = checkbox.dataset.project;
+    const projectId = checkbox.dataset.projectid;
+    await loadPipeline(groupIdx, projIdx, projectId);
+  }
+}
