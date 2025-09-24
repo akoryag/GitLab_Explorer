@@ -25,71 +25,84 @@
   <form method="POST" action="/logout">
     <button type="submit" class="primary-btn">Выйти</button>
   </form>
-  {{end}}
 
-  {{if .Error}}
-  <p class="error">Ошибка: {{.Error}}</p>
-  {{end}}
+  <div class="tabs">
+    <div class="tab active" onclick="openTab('pipelines')">Пайплайны</div>
+    <div class="tab" onclick="openTab('tags')">Теги</div>
+  </div>
 
-  {{range $i, $g := .Groups}}
-  <div class="group">
-    <div class="group-header" onclick="toggleGroup('group{{$i}}')">
-      <span id="btn-group{{$i}}" class="toggle-btn">[+]</span>
-      <h2>Группа: {{$g.Name}} ({{$g.Path}})</h2>
+  <div id="pipelines" class="tab-content active">
+    {{if .Error}}
+    <p class="error">Ошибка: {{.Error}}</p>
+    {{end}}
+
+    {{range $i, $g := .Groups}}
+    <div class="group">
+      <div class="group-header" onclick="toggleGroup('group{{$i}}')">
+        <span id="btn-group{{$i}}" class="toggle-btn">[+]</span>
+        <h2>Группа: {{$g.Name}} ({{$g.Path}})</h2>
+      </div>
+
+      <div id="group{{$i}}" class="group-content">
+        <button type="button" onclick="loadSelectedPipelines('{{$i}}')" class="retry-btn" style="margin-left: 5px; margin-bottom: 10px;">Загрузить выбранные</button>
+        <button type="button" onclick="clearAllPipelines('{{$i}}')" class="cancel-btn" style="margin-left: 5px; margin-bottom: 10px;">Очистить</button>
+        <table>
+          <tr>
+            <th width="30px">
+              <input type="checkbox" id="header-checkbox-{{$i}}" onchange="toggleAllProjects('{{$i}}')">
+            </th>
+            <th>Проект</th>
+            <th>
+              Реф
+              <select id="group-ref-{{$i}}" onchange="applyGroupRef('{{$i}}')">
+                <option value="">— Массовый выбор —</option>
+                {{range $r := $g.AllRefs}}<option>{{$r}}</option>{{end}}
+              </select>
+            </th>
+            <th>Действие</th>
+            <th>
+              Джоб / Bridge
+              <input type="text" id="searchJobs-{{$i}}" size="30" placeholder="Поиск jobs" oninput="filterJobs('{{$i}}')">
+            </th>
+          </tr>
+          {{range $j, $p := $g.Projects}}
+          <tr>
+            <td>
+              <input type="checkbox" id="project-{{$i}}-{{$j}}" class="project-checkbox" data-group="{{$i}}" data-project="{{$j}}" data-projectid="{{$p.ID}}">
+            </td>
+            <td>{{.Name}}</td>
+            <td>
+              <select id="ref-{{$i}}-{{$j}}" style="width: 250px;">
+                {{range .Refs}}<option>{{.}}</option>{{else}}<option>—</option>{{end}}
+              </select>
+            </td>
+            <td>
+              <button type="button" onclick="loadPipeline('{{$i}}', '{{$j}}', '{{$p.ID}}')" class="retry-btn">Загрузить пайплайн</button> <br>
+              <button type="button" onclick="openPipeline('{{$i}}', '{{$j}}', '{{$p.ID}}')" class="run-btn">Перейти</button>
+            </td>
+            <td>
+              <div id="pipeline-{{$i}}-{{$j}}" class="pipeline-section">
+                <p class="pipeline-error" id="pipeline-error-{{$i}}-{{$j}}" style="display:none;"></p>
+                <table>
+                  <tbody id="jobs-{{$i}}-{{$j}}"></tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+          {{end}}
+          {{if not $g.Projects}}
+          <tr><td colspan="4">Нет проектов</td></tr>
+          {{end}}
+        </table>
+      </div>
     </div>
+    {{end}}
+  </div>
 
-    <div id="group{{$i}}" class="group-content">
-      <button type="button" onclick="loadSelectedPipelines('{{$i}}')" class="retry-btn" style="margin-left: 5px; margin-bottom: 10px;">Загрузить выбранные</button>
-      <button type="button" onclick="clearAllPipelines('{{$i}}')" class="cancel-btn" style="margin-left: 5px; margin-bottom: 10px;">Очистить</button>
-      <table>
-        <tr>
-          <th width="30px">
-            <input type="checkbox" id="header-checkbox-{{$i}}" onchange="toggleAllProjects('{{$i}}')">
-          </th>
-          <th>Проект</th>
-          <th>
-            Реф
-            <select id="group-ref-{{$i}}" onchange="applyGroupRef('{{$i}}')">
-              <option value="">— Массовый выбор —</option>
-              {{range $r := $g.AllRefs}}<option>{{$r}}</option>{{end}}
-            </select>
-          </th>
-          <th>Действие</th>
-          <th>
-            Джоб / Bridge
-            <input type="text" id="searchJobs-{{$i}}" size="30" placeholder="Поиск jobs" oninput="filterJobs('{{$i}}')">
-          </th>
-        </tr>
-        {{range $j, $p := $g.Projects}}
-        <tr>
-          <td>
-            <input type="checkbox" id="project-{{$i}}-{{$j}}" class="project-checkbox" data-group="{{$i}}" data-project="{{$j}}" data-projectid="{{$p.ID}}">
-          </td>
-          <td>{{.Name}}</td>
-          <td>
-            <select id="ref-{{$i}}-{{$j}}" style="width: 250px;">
-              {{range .Refs}}<option>{{.}}</option>{{else}}<option>—</option>{{end}}
-            </select>
-          </td>
-          <td>
-            <button type="button" onclick="loadPipeline('{{$i}}', '{{$j}}', '{{$p.ID}}')" class="retry-btn">Загрузить пайплайн</button> <br>
-            <button type="button" onclick="openPipeline('{{$i}}', '{{$j}}', '{{$p.ID}}')" class="run-btn">Перейти</button>
-          </td>
-          <td>
-            <div id="pipeline-{{$i}}-{{$j}}" class="pipeline-section">
-              <p class="pipeline-error" id="pipeline-error-{{$i}}-{{$j}}" style="display:none;"></p>
-              <table>
-                <tbody id="jobs-{{$i}}-{{$j}}"></tbody>
-              </table>
-            </div>
-          </td>
-        </tr>
-        {{end}}
-        {{if not $g.Projects}}
-        <tr><td colspan="4">Нет проектов</td></tr>
-        {{end}}
-      </table>
-    </div>
+  <div id="tags" class="tab-content">
+    <h2>Управление тегами</h2>
+    <p>Здесь будет интерфейс для работы с тегами GitLab (список тегов, создание, удаление).</p>
+    <button class="primary-btn">Загрузить теги</button>
   </div>
   {{end}}
 
