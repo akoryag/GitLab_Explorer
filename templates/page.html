@@ -11,13 +11,13 @@
   {{if not .Loaded}}
   <form method="POST" action="/">
     <label>Gitlab URL</label><br><br>
-    <input type="text" name="gitlabURL" size="30" required><br><br>
+    <input type="text" name="gitlabURL" placeholder="https://gitlab.com" pattern="https://.+" size="30" required><br><br>
 
     <label>GitLab OAuth Token</label><br><br>
     <input type="password" name="token" size="30" required><br><br>
 
     <label>Root Group ID</label><br><br>
-    <input type="number" name="rootGroupID" size="30" min="0" step="1" required><br><br>
+    <input type="text" name="rootGroupID" placeholder="1111, 2222" size="30" min="0" step="1" required><br><br>
 
     <button type="submit" class="primary-btn">Загрузить</button>
   </form>
@@ -59,7 +59,7 @@
         <tr>
           <td>{{.Name}}</td>
           <td>
-            <select id="ref-{{$i}}-{{$j}}">
+            <select id="ref-{{$i}}-{{$j}}" style="width: 250px;">
               {{range .Refs}}<option>{{.}}</option>{{else}}<option>—</option>{{end}}
             </select>
           </td>

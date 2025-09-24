@@ -53,15 +53,31 @@ func (app *AppContext) Handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		token := strings.TrimSpace(r.FormValue("token"))
 		gitlabURL := strings.TrimSpace(r.FormValue("gitlabURL"))
-		rootGroupIDStr := strings.TrimSpace(r.FormValue("rootGroupID"))
+		rootGroupIDsStr := strings.TrimSpace(r.FormValue("rootGroupID"))
 
 		// сохраняем в cookie
 		http.SetCookie(w, &http.Cookie{Name: "gitlab_token", Value: token, Path: "/", HttpOnly: true})
 		http.SetCookie(w, &http.Cookie{Name: "gitlab_url", Value: gitlabURL, Path: "/", HttpOnly: true})
 
-		rootGroupID, err := strconv.Atoi(rootGroupIDStr)
-		if err != nil {
-			data.Error = "Ошибка поиска группы: " + err.Error()
+		// Разделяем ID по запятой и преобразуем в числа
+		groupIDStrs := strings.Split(rootGroupIDsStr, ",")
+		var rootGroupIDs []int
+		for _, idStr := range groupIDStrs {
+			idStr = strings.TrimSpace(idStr)
+			if idStr == "" {
+				continue
+			}
+			id, err := strconv.Atoi(idStr)
+			if err != nil {
+				data.Error = "Ошибка парсинга ID группы: " + err.Error()
+				_ = app.Tmpl.Execute(w, data)
+				return
+			}
+			rootGroupIDs = append(rootGroupIDs, id)
+		}
+
+		if len(rootGroupIDs) == 0 {
+			data.Error = "Не указано ни одного ID группы"
 			_ = app.Tmpl.Execute(w, data)
 			return
 		}
@@ -73,14 +89,21 @@ func (app *AppContext) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		groups, err := loadGroups(client, rootGroupID)
-		if err != nil {
-			data.Error = "Ошибка получения групп: " + err.Error()
-		} else {
-			data.Groups = groups
-			data.Token = token
-			data.Loaded = true
+		// Загружаем группы для всех указанных ID
+		var allGroups []GroupInfo
+		for _, rootGroupID := range rootGroupIDs {
+			groups, err := loadGroups(client, rootGroupID)
+			if err != nil {
+				data.Error = "Ошибка получения групп для ID " + strconv.Itoa(rootGroupID) + ": " + err.Error()
+				_ = app.Tmpl.Execute(w, data)
+				return
+			}
+			allGroups = append(allGroups, groups...)
 		}
+
+		data.Groups = allGroups
+		data.Token = token
+		data.Loaded = true
 	}
 
 	_ = app.Tmpl.Execute(w, data)
