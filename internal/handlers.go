@@ -165,3 +165,33 @@ func (app *AppContext) HandleJobAction() http.HandlerFunc {
 		writeJSON(w, 200, map[string]string{"status": "success"})
 	})
 }
+
+func (app *AppContext) PipelineURLHandler() http.HandlerFunc {
+	return app.withGitlabClient(func(w http.ResponseWriter, r *http.Request, client *gitlab.Client) {
+		projectIDStr := r.URL.Query().Get("project_id")
+		ref := r.URL.Query().Get("ref")
+		if projectIDStr == "" || ref == "" {
+			writeJSON(w, 400, map[string]string{"error": "Не хватает параметров"})
+			return
+
+		}
+		if after, ok := strings.CutPrefix(ref, "tag:"); ok {
+			ref = after
+		}
+
+		info, err := loadPipelineInfo(client, projectIDStr, ref)
+		if err != nil {
+			writeJSON(w, 500, map[string]string{"error": err.Error()})
+			return
+		}
+
+		project, _, err := client.Projects.GetProject(projectIDStr, nil)
+		if err != nil {
+			writeJSON(w, 500, map[string]string{"error": "Не удалось получить проект"})
+			return
+		}
+
+		pipelineURL := strings.TrimSuffix(client.BaseURL().String(), "api/v4/") + project.PathWithNamespace + "/-/pipelines/" + strconv.Itoa(info.ID)
+		writeJSON(w, 200, map[string]string{"url": pipelineURL})
+	})
+}

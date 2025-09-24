@@ -260,3 +260,18 @@ function clearAllPipelines() {
   const allJobs = document.querySelectorAll('[id^="jobs-"]');
   allJobs.forEach(tbody => tbody.innerHTML = '');
 }
+
+async function openPipeline(groupIdx, projIdx, projectId) {
+  const select = document.getElementById(`ref-${groupIdx}-${projIdx}`);
+  const ref = select.value;
+
+  const resp = await fetch(
+    `/pipeline-url?project_id=${projectId}&ref=${encodeURIComponent(ref)}`
+  );
+  const data = await resp.json();
+  if (data.url) {
+    window.open(data.url, '_blank');
+  } else {
+    alert("Не удалось получить URL пайплайна");
+  }
+}
