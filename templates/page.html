@@ -110,8 +110,8 @@
     </div>
 
     <div id="tags-group{{$i}}" class="group-content">
-      <button type="button" class="retry-btn" style="margin: 5px;">Загрузить выбранное</button>
-      <button type="button" class="cancel-btn" style="margin: 5px;">Очистить</button>
+      <button type="button" onclick="loadSelectedTags('{{$i}}')" class="retry-btn" style="margin: 5px;">Загрузить теги выбранных</button>
+      <button type="button" onclick="clearAllTags('{{$i}}')" class="cancel-btn" style="margin: 5px;">Очистить</button>
 
       <div style="margin: 10px 0;">
         <input type="text" placeholder="Введите тег" size="30">

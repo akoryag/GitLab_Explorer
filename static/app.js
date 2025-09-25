@@ -318,3 +318,95 @@ function getSelectedTagsProjects(groupIdx) {
   );
 }
 
+// Загрузка тегов для выбранных проектов
+async function loadSelectedTags(groupIdx) {
+  const selected = getSelectedTagsProjects(groupIdx);
+
+  if (!selected.length) {
+    alert("Выберите хотя бы один проект");
+    return;
+  }
+
+  // Показываем индикатор загрузки
+  selected.forEach(cb => {
+    const projIdx = cb.dataset.project;
+    const tagsDiv = document.getElementById(`tags-list-${groupIdx}-${projIdx}`);
+    tagsDiv.innerHTML = '<em>Загрузка тегов...</em>';
+  });
+
+  await Promise.all(
+    selected.map(async cb => {
+      const projIdx = cb.dataset.project;
+      const projectId = cb.dataset.projectid;
+      await loadProjectTags(groupIdx, projIdx, projectId);
+    })
+  );
+}
+
+// Очистка всех тегов
+function clearAllTags(groupIdx) {
+  document.querySelectorAll(`[id^="tags-list-${groupIdx}-"]`).forEach(div => {
+    div.innerHTML = "";
+  });
+}
+
+// Загрузка тегов для конкретного проекта
+async function loadProjectTags(groupIdx, projIdx, projectId) {
+  const select = document.getElementById(`tags-ref-${groupIdx}-${projIdx}`);
+  const ref = select.value;
+  
+  try {
+    const resp = await fetch(`/tags?project_id=${projectId}&ref=${encodeURIComponent(ref)}`);
+    if (!resp.ok) throw new Error("HTTP error " + resp.status);
+
+    const data = await resp.json();
+    const tagsDiv = document.getElementById(`tags-list-${groupIdx}-${projIdx}`);
+    
+    if (data.error) {
+      tagsDiv.innerHTML = `<span style="color: red;">Ошибка: ${data.error}</span>`;
+      return;
+    }
+
+    // Отображаем список тегов
+    if (data.tags && data.tags.length > 0) {
+      let html = '<ul style="margin: 0; padding-left: 20px;">';
+      data.tags.forEach(tag => {
+        html += `<li>
+          <span>${tag.name}</span>
+          <button onclick="deleteTag(${groupIdx}, ${projIdx}, ${projectId}, '${tag.name}')" class="cancel-btn" style="margin-left: 10px; padding: 2px 6px;">Удалить</button>
+        </li>`;
+      });
+      html += '</ul>';
+      tagsDiv.innerHTML = html;
+    } else {
+      tagsDiv.innerHTML = '<em>Тегов нет</em>';
+    }
+  } catch (err) {
+    const tagsDiv = document.getElementById(`tags-list-${groupIdx}-${projIdx}`);
+    tagsDiv.innerHTML = `<span style="color: red;">Ошибка: ${err.message}</span>`;
+  }
+}
+
+// Удаление тега
+async function deleteTag(groupIdx, projIdx, projectId, tagName) {
+  if (!confirm(`Удалить тег "${tagName}"?`)) return;
+
+  try {
+    const resp = await fetch(`/tags/delete?project_id=${projectId}&tag_name=${encodeURIComponent(tagName)}`, {
+      method: 'DELETE'
+    });
+    
+    if (!resp.ok) throw new Error("HTTP error " + resp.status);
+
+    const data = await resp.json();
+    if (data.error) {
+      alert("Ошибка: " + data.error);
+    } else {
+      alert("Тег удален успешно");
+      // Перезагружаем теги
+      await loadProjectTags(groupIdx, projIdx, projectId);
+    }
+  } catch (err) {
+    alert("Ошибка: " + err.message);
+  }
+}

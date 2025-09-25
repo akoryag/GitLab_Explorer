@@ -195,3 +195,53 @@ func (app *AppContext) PipelineURLHandler() http.HandlerFunc {
 		writeJSON(w, 200, map[string]string{"url": pipelineURL})
 	})
 }
+
+func (app *AppContext) TagsHandler() http.HandlerFunc {
+	return app.withGitlabClient(func(w http.ResponseWriter, r *http.Request, client *gitlab.Client) {
+		projectID := r.URL.Query().Get("project_id")
+		ref := r.URL.Query().Get("ref")
+
+		if projectID == "" || ref == "" {
+			writeJSON(w, 400, map[string]string{"error": "Не хватает параметров"})
+			return
+		}
+
+		// Получаем теги проекта
+		tags, _, err := client.Tags.ListTags(projectID, &gitlab.ListTagsOptions{})
+		if err != nil {
+			writeJSON(w, 500, map[string]string{"error": "Ошибка получения тегов: " + err.Error()})
+			return
+		}
+
+		var tagInfos []map[string]string
+		for _, tag := range tags {
+			tagInfos = append(tagInfos, map[string]string{
+				"name":   tag.Name,
+				"commit": tag.Commit.ID,
+			})
+		}
+
+		writeJSON(w, 200, map[string]interface{}{"tags": tagInfos})
+	})
+}
+
+// Удаление тега
+func (app *AppContext) DeleteTagHandler() http.HandlerFunc {
+	return app.withGitlabClient(func(w http.ResponseWriter, r *http.Request, client *gitlab.Client) {
+		projectID := r.URL.Query().Get("project_id")
+		tagName := r.URL.Query().Get("tag_name")
+
+		if projectID == "" || tagName == "" {
+			writeJSON(w, 400, map[string]string{"error": "Не хватает параметров"})
+			return
+		}
+
+		_, err := client.Tags.DeleteTag(projectID, tagName)
+		if err != nil {
+			writeJSON(w, 500, map[string]string{"error": "Ошибка удаления тега: " + err.Error()})
+			return
+		}
+
+		writeJSON(w, 200, map[string]string{"status": "success"})
+	})
+}
