@@ -408,11 +408,78 @@ async function deleteTag(groupIdx, projIdx, projectId, tagName) {
     if (data.error) {
       alert("Ошибка: " + data.error);
     } else {
-      alert("Тег удален успешно");
       // Перезагружаем теги
       await loadProjectTags(groupIdx, projIdx, projectId);
     }
   } catch (err) {
     alert("Ошибка: " + err.message);
+  }
+}
+
+// Создание тега для выбранных проектов
+async function createTagsForSelected(groupIdx) {
+  const selected = getSelectedTagsProjects(groupIdx);
+
+  if (!selected.length) {
+    alert("Выберите хотя бы один проект");
+    return;
+  }
+
+  const tagName = prompt("Введите имя тега:");
+  if (!tagName || tagName.trim() === "") {
+    alert("Имя тега не может быть пустым");
+    return;
+  }
+
+  // Показываем индикатор создания
+  selected.forEach(cb => {
+    const projIdx = cb.dataset.project;
+    const tagsDiv = document.getElementById(`tags-list-${groupIdx}-${projIdx}`);
+    tagsDiv.innerHTML = '<em>Создание тега...</em>';
+  });
+
+  await Promise.all(
+    selected.map(async cb => {
+      const projIdx = cb.dataset.project;
+      const projectId = cb.dataset.projectid;
+      await createTag(groupIdx, projIdx, projectId, tagName.trim());
+    })
+  );
+}
+
+// Создание тега для конкретного проекта
+async function createTag(groupIdx, projIdx, projectId, tagName) {
+  try {
+    // Используем выбранный бранч
+    const select = document.getElementById(`tags-ref-${groupIdx}-${projIdx}`);
+    const refName = select.value;
+
+    const resp = await fetch('/tags/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        project_id: projectId,
+        tag_name: tagName,
+        ref: refName
+      })
+    });
+
+    if (!resp.ok) throw new Error("HTTP error " + resp.status);
+
+    const data = await resp.json();
+    const tagsDiv = document.getElementById(`tags-list-${groupIdx}-${projIdx}`);
+    
+    if (data.error) {
+      tagsDiv.innerHTML = `<span style="color: red;">Ошибка: ${data.error}</span>`;
+    } else {
+      tagsDiv.innerHTML = '<span style="color: green;">Тег создан успешно!</span>';
+      // Перезагружаем список тегов через 1 секунду
+      setTimeout(() => loadProjectTags(groupIdx, projIdx, projectId), 1000);
+    }
+  } catch (err) {
+    const tagsDiv = document.getElementById(`tags-list-${groupIdx}-${projIdx}`);
+    tagsDiv.innerHTML = `<span style="color: red;">Ошибка: ${err.message}</span>`;
   }
 }

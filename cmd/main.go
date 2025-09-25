@@ -23,6 +23,7 @@ func main() {
 	mux.Handle("/job", appCtx.HandleJobAction())
 	mux.Handle("/pipeline-url", appCtx.PipelineURLHandler())
 	mux.Handle("/tags", appCtx.TagsHandler())
+	mux.Handle("/tags/create", appCtx.CreateTagHandler())
 	mux.Handle("/tags/delete", appCtx.DeleteTagHandler())
 
 	fs := http.FileServer(http.Dir("static"))

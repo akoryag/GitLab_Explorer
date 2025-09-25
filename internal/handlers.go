@@ -245,3 +245,48 @@ func (app *AppContext) DeleteTagHandler() http.HandlerFunc {
 		writeJSON(w, 200, map[string]string{"status": "success"})
 	})
 }
+
+func (app *AppContext) CreateTagHandler() http.HandlerFunc {
+	return app.withGitlabClient(func(w http.ResponseWriter, r *http.Request, client *gitlab.Client) {
+		if r.Method != http.MethodPost {
+			writeJSON(w, 405, map[string]string{"error": "Метод не поддерживается"})
+			return
+		}
+
+		var request struct {
+			ProjectID string `json:"project_id"`
+			TagName   string `json:"tag_name"`
+			Ref       string `json:"ref"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, 400, map[string]string{"error": "Ошибка парсинга JSON: " + err.Error()})
+			return
+		}
+
+		if request.ProjectID == "" || request.TagName == "" || request.Ref == "" {
+			writeJSON(w, 400, map[string]string{"error": "Не хватает параметров"})
+			return
+		}
+
+		// Создаем тег
+		opts := &gitlab.CreateTagOptions{
+			TagName: gitlab.Ptr(request.TagName),
+			Ref:     gitlab.Ptr(request.Ref),
+		}
+
+		tag, _, err := client.Tags.CreateTag(request.ProjectID, opts)
+		if err != nil {
+			writeJSON(w, 500, map[string]string{"error": "Ошибка создания тега: " + err.Error()})
+			return
+		}
+
+		writeJSON(w, 200, map[string]interface{}{
+			"status": "success",
+			"tag": map[string]string{
+				"name":   tag.Name,
+				"commit": tag.Commit.ID,
+			},
+		})
+	})
+}
