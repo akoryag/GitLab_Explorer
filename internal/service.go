@@ -26,6 +26,7 @@ func loadGroups(client *gitlab.Client, rootGroupID int) ([]GroupInfo, error) {
 	for _, g := range allGroups {
 		grp := GroupInfo{Name: g.Name, ID: g.ID, Path: g.FullPath}
 		allRefs := make(map[string]struct{})
+		allBranches := make(map[string]struct{})
 
 		projects, _, err := client.Groups.ListGroupProjects(g.ID, &gitlab.ListGroupProjectsOptions{})
 		if err != nil {
@@ -35,12 +36,16 @@ func loadGroups(client *gitlab.Client, rootGroupID int) ([]GroupInfo, error) {
 		for _, p := range projects {
 			prj := ProjectInfo{Name: p.Name, ID: p.ID}
 
+			// Загружаем ветки
 			branches, _, _ := client.Branches.ListBranches(p.ID, &gitlab.ListBranchesOptions{})
 			for _, b := range branches {
 				prj.Refs = append(prj.Refs, b.Name)
+				prj.Branches = append(prj.Branches, b.Name)
 				allRefs[b.Name] = struct{}{}
+				allBranches[b.Name] = struct{}{}
 			}
 
+			// Загружаем теги
 			tags, _, _ := client.Tags.ListTags(p.ID, &gitlab.ListTagsOptions{})
 			for _, t := range tags {
 				tagName := "tag:" + t.Name
@@ -53,6 +58,9 @@ func loadGroups(client *gitlab.Client, rootGroupID int) ([]GroupInfo, error) {
 
 		for ref := range allRefs {
 			grp.AllRefs = append(grp.AllRefs, ref)
+		}
+		for branch := range allBranches {
+			grp.AllBranches = append(grp.AllBranches, branch)
 		}
 
 		result = append(result, grp)

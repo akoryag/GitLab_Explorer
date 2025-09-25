@@ -282,3 +282,39 @@ function openTab(tabId) {
   document.getElementById(tabId).classList.add('active');
   event.target.classList.add('active');
 }
+
+// Массовый выбор ветки в тегах
+function applyTagsGroupRef(groupIdx) {
+  const groupSelect = document.getElementById("tags-group-ref-" + groupIdx);
+  const selectedRef = groupSelect.value;
+  if (!selectedRef) return;
+
+  const projectSelects = document.querySelectorAll(
+    `[id^="tags-ref-${groupIdx}-"]`
+  );
+  projectSelects.forEach((sel) => {
+    if ([...sel.options].some((opt) => opt.value === selectedRef)) {
+      sel.value = selectedRef;
+    }
+  });
+}
+
+// Переключение всех чекбоксов в группе тегов
+function toggleAllTagsProjects(groupIdx) {
+  const headerCheckbox = document.getElementById(`tags-header-checkbox-${groupIdx}`);
+  const projectCheckboxes = document.querySelectorAll(`.tags-project-checkbox[data-group="${groupIdx}"]`);
+  
+  const isChecked = headerCheckbox.checked;
+    
+  projectCheckboxes.forEach(checkbox => {
+    checkbox.checked = isChecked;
+  });
+}
+
+// Получить выбранные проекты в тегах
+function getSelectedTagsProjects(groupIdx) {
+  return Array.from(
+    document.querySelectorAll(`.tags-project-checkbox[data-group="${groupIdx}"]:checked`)
+  );
+}
+

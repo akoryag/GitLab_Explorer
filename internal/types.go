@@ -1,17 +1,19 @@
 package app
 
 type ProjectInfo struct {
-	Name string
-	ID   int
-	Refs []string
+	Name     string
+	ID       int
+	Refs     []string
+	Branches []string
 }
 
 type GroupInfo struct {
-	Name     string
-	ID       int
-	Path     string
-	Projects []ProjectInfo
-	AllRefs  []string
+	Name        string
+	ID          int
+	Path        string
+	Projects    []ProjectInfo
+	AllRefs     []string
+	AllBranches []string
 }
 
 type PageData struct {
