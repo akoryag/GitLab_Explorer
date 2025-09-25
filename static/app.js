@@ -410,6 +410,7 @@ async function deleteTag(groupIdx, projIdx, projectId, tagName) {
     } else {
       // Перезагружаем теги
       await loadProjectTags(groupIdx, projIdx, projectId);
+      await updatePipelineRefs(groupIdx, projIdx, projectId);
     }
   } catch (err) {
     alert("Ошибка: " + err.message);
@@ -475,11 +476,92 @@ async function createTag(groupIdx, projIdx, projectId, tagName) {
       tagsDiv.innerHTML = `<span style="color: red;">Ошибка: ${data.error}</span>`;
     } else {
       tagsDiv.innerHTML = '<span style="color: green;">Тег создан успешно!</span>';
-      // Перезагружаем список тегов через 1 секунду
-      setTimeout(() => loadProjectTags(groupIdx, projIdx, projectId), 1000);
+      setTimeout(() => {
+          loadProjectTags(groupIdx, projIdx, projectId);
+          updatePipelineRefs(groupIdx, projIdx, projectId);
+        }, 1000);
     }
   } catch (err) {
     const tagsDiv = document.getElementById(`tags-list-${groupIdx}-${projIdx}`);
     tagsDiv.innerHTML = `<span style="color: red;">Ошибка: ${err.message}</span>`;
   }
+}
+
+// Обновляет список рефов в селекторе пайплайнов
+async function updatePipelineRefs(groupIdx, projIdx, projectId) {
+    try {
+        const refSelect = document.getElementById(`ref-${groupIdx}-${projIdx}`);
+        if (!refSelect) return;
+        
+        const currentBranches = Array.from(refSelect.options)
+            .map(opt => opt.value)
+            .filter(val => val && val !== '—' && !val.startsWith('tag:'));
+        
+        const currentValue = refSelect.value;
+        
+        const resp = await fetch(`/tags?project_id=${projectId}&ref=main`);
+        if (!resp.ok) return;
+        
+        const data = await resp.json();
+        const tags = data.tags || [];
+        
+        refSelect.innerHTML = '';
+        
+        currentBranches.forEach(branch => {
+            const option = document.createElement('option');
+            option.value = branch;
+            option.textContent = branch;
+            refSelect.appendChild(option);
+        });
+        
+        tags.forEach(tag => {
+            const tagValue = `tag:${tag.name}`;
+            const option = document.createElement('option');
+            option.value = tagValue;
+            option.textContent = tagValue;
+            refSelect.appendChild(option);
+        });      
+
+        if (Array.from(refSelect.options).some(opt => opt.value === currentValue)) {
+            refSelect.value = currentValue;
+        } else if (refSelect.options.length > 0) {
+            refSelect.selectedIndex = 0;
+        }
+        
+        // Обновляем групповой селект рефов
+        updateGroupRefsSelect(groupIdx);
+        
+    } catch (err) {
+        console.error('Ошибка обновления рефов:', err);
+    }
+}
+
+// Обновляет групповой селект "Массовый выбор"
+function updateGroupRefsSelect(groupIdx) {
+    const groupSelect = document.getElementById(`group-ref-${groupIdx}`);
+    if (!groupSelect) return;
+
+    const allRefs = new Set();
+    
+    document.querySelectorAll(`[id^="ref-${groupIdx}-"]`).forEach(select => {
+        Array.from(select.options).forEach(option => {
+            if (option.value && option.value !== '—') {
+                allRefs.add(option.value);
+            }
+        });
+    });
+
+    const currentValue = groupSelect.value;
+
+    groupSelect.innerHTML = '<option value="">— Массовый выбор —</option>';
+    Array.from(allRefs).sort().forEach(ref => {
+        const option = document.createElement('option');
+        option.value = ref;
+        option.textContent = ref;
+        groupSelect.appendChild(option);
+    });
+
+    if (allRefs.has(currentValue)) {
+        groupSelect.value = currentValue;
+    }
 }
