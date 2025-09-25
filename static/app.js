@@ -354,7 +354,7 @@ function clearAllTags(groupIdx) {
 async function loadProjectTags(groupIdx, projIdx, projectId) {
   const select = document.getElementById(`tags-ref-${groupIdx}-${projIdx}`);
   const ref = select.value;
-  
+
   try {
     const resp = await fetch(`/tags?project_id=${projectId}&ref=${encodeURIComponent(ref)}`);
     if (!resp.ok) throw new Error("HTTP error " + resp.status);
@@ -367,13 +367,19 @@ async function loadProjectTags(groupIdx, projIdx, projectId) {
       return;
     }
 
-    // Отображаем список тегов
+    // Отображаем список тегов с прокруткой
     if (data.tags && data.tags.length > 0) {
-      let html = '<ul style="margin: 0; padding-left: 20px;">';
+      let html = `<div style="font-weight: bold; margin-bottom: 5px;">Тегов: ${data.tags.length}</div>`;
+      html += '<ul style="margin: 0; padding-left: 15px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 8px;">';
+      
       data.tags.forEach(tag => {
-        html += `<li>
-          <span>${tag.name}</span>
-          <button onclick="deleteTag(${groupIdx}, ${projIdx}, ${projectId}, '${tag.name}')" class="cancel-btn" style="margin-left: 10px; padding: 2px 6px;">Удалить</button>
+        html += `<li style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-bottom: 1px solid #eee;">
+          <span style="flex: 1;">${tag.name}</span>
+          <button onclick="deleteTag(${groupIdx}, ${projIdx}, ${projectId}, '${tag.name}')" 
+                  class="cancel-btn" 
+                  style="margin-left: 10px; padding: 2px 6px; font-size: 11px;">
+            Удалить
+          </button>
         </li>`;
       });
       html += '</ul>';
