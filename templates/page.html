@@ -110,17 +110,18 @@
     </div>
 
     <div id="tags-group{{$i}}" class="group-content">
-      <button type="button" onclick="loadSelectedTags('{{$i}}')" class="retry-btn" style="margin: 5px;">Загрузить теги</button>
-      <button type="button" onclick="clearAllTags('{{$i}}')" class="cancel-btn" style="margin: 5px;">Очистить</button>
-
-    <div style="margin: 10px 0;">
-      <button type="button" onclick="createTagsForSelected('{{$i}}')" class="primary-btn">
-        Создать теги
-      </button>
-      <span style="margin-left: 10px; font-size: 12px; color: #666;">
-        (тег будет создан от выбранного бранча каждого проекта)
-      </span>
-    </div>
+      <div style="display: flex; align-items: center; margin-bottom: 10px;">
+        <div>
+          <button type="button" onclick="loadSelectedTags('{{$i}}')" class="retry-btn" style="margin-right: 5px;">Загрузить теги</button>
+          <button type="button" onclick="clearAllTags('{{$i}}')" class="cancel-btn">Очистить</button>
+        </div>
+        <div style="margin-left: auto; display: flex; align-items: center;">
+          <button type="button" onclick="createTagsForSelected('{{$i}}')" class="run-btn">Создать теги</button>
+          <span style="margin-left: 10px; font-size: 12px; color: #666;">
+            (тег будет создан от выбранного бранча каждого проекта)
+          </span>
+        </div>
+      </div>
 
       <table>
         <tr>

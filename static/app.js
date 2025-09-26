@@ -427,7 +427,10 @@ async function createTagsForSelected(groupIdx) {
   }
 
   const tagName = prompt("Введите имя тега:");
-  if (!tagName || tagName.trim() === "") {
+  if (tagName === null) {
+    return;
+  }
+  if (!tagName.trim()) {
     alert("Имя тега не может быть пустым");
     return;
   }
