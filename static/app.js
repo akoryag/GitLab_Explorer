@@ -320,6 +320,7 @@ function getSelectedTagsProjects(groupIdx) {
 
 // Загрузка тегов для выбранных проектов
 async function loadSelectedTags(groupIdx) {
+  clearAllTags(groupIdx)
   const selected = getSelectedTagsProjects(groupIdx);
 
   if (!selected.length) {
@@ -369,19 +370,38 @@ async function loadProjectTags(groupIdx, projIdx, projectId) {
 
     // Отображаем список тегов с прокруткой
     if (data.tags && data.tags.length > 0) {
-      let html = `<div style="font-weight: bold; margin-bottom: 5px;">Тегов: ${data.tags.length}</div>`;
+      let html = `<div style="font-weight: bold; margin-bottom: 5px;">
+              <span class="tags-count">Тегов: ${data.tags.length}</span>
+              <button type="button" 
+                      onclick="deleteSelectedTagsInProject('${groupIdx}', '${projIdx}', '${projectId}')" 
+                      class="cancel-btn" 
+                      style="margin-left: 10px; padding: 2px 6px; font-size: 11px;">
+                  Удалить выбранные
+              </button>
+              <label style="margin-left: 10px; font-weight: normal; font-size: 12px;">
+                  <input type="checkbox" id="select-all-${groupIdx}-${projIdx}" 
+                         onchange="toggleAllTags('${groupIdx}', '${projIdx}')">
+                  Выбрать все
+              </label>
+            </div>`;
       html += '<ul style="margin: 0; padding-left: 15px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 8px;">';
       
       data.tags.forEach(tag => {
         html += `<li style="display: flex; justify-content: space-between; align-items: center; padding: 3px 0; border-bottom: 1px solid #eee;">
-          <span style="flex: 1;">${tag.name}</span>
-          <button onclick="deleteTag(${groupIdx}, ${projIdx}, ${projectId}, '${tag.name}')" 
-                  class="cancel-btn" 
-                  style="margin-left: 10px; padding: 2px 6px; font-size: 11px;">
-            Удалить
-          </button>
-        </li>`;
-      });
+                  <span style="display: flex; align-items: center; flex: 1;">
+                    <input type="checkbox" class="tag-checkbox" 
+                           id="tag-${groupIdx}-${projIdx}-${tag.name}" 
+                           data-tag-name="${tag.name}"
+                           style="margin-right: 8px;">
+                    <span>${tag.name}</span>
+                  </span>
+                  <button onclick="deleteTag(${groupIdx}, ${projIdx}, ${projectId}, '${tag.name}')" 
+                          class="cancel-btn" 
+                          style="margin-left: 10px; padding: 2px 6px; font-size: 11px;">
+                    Удалить
+                  </button>
+                </li>`;
+            });
       html += '</ul>';
       tagsDiv.innerHTML = html;
     } else {
@@ -393,15 +413,28 @@ async function loadProjectTags(groupIdx, projIdx, projectId) {
   }
 }
 
+function updateTagsCount(groupIdx, projIdx) {
+  const tagsDiv = document.getElementById(`tags-list-${groupIdx}-${projIdx}`);
+  if (!tagsDiv) return;
+
+  const countEl = tagsDiv.querySelector(".tags-count");
+  if (!countEl) return;
+
+  const list = tagsDiv.querySelector("ul");
+  const count = list ? list.querySelectorAll("li").length : 0;
+
+  countEl.textContent = `Тегов: ${count}`;
+}
+
 // Удаление тега
-async function deleteTag(groupIdx, projIdx, projectId, tagName) {
-  if (!confirm(`Удалить тег "${tagName}"?`)) return;
+async function deleteTag(groupIdx, projIdx, projectId, tagName, skipConfirm = false) {
+  if (!skipConfirm && !confirm(`Удалить тег "${tagName}"?`)) return;
 
   try {
     const resp = await fetch(`/tags/delete?project_id=${projectId}&tag_name=${encodeURIComponent(tagName)}`, {
       method: 'DELETE'
     });
-    
+
     if (!resp.ok) throw new Error("HTTP error " + resp.status);
 
     const data = await resp.json();
@@ -411,6 +444,7 @@ async function deleteTag(groupIdx, projIdx, projectId, tagName) {
       // Перезагружаем теги
       await loadProjectTags(groupIdx, projIdx, projectId);
       await updatePipelineRefs(groupIdx, projIdx, projectId);
+      updateTagsCount(groupIdx, projIdx);
     }
   } catch (err) {
     alert("Ошибка: " + err.message);
@@ -567,4 +601,34 @@ function updateGroupRefsSelect(groupIdx) {
     if (allRefs.has(currentValue)) {
         groupSelect.value = currentValue;
     }
+}
+
+function toggleAllTags(groupIdx, projIdx) {
+    const selectAllCheckbox = document.getElementById(`select-all-${groupIdx}-${projIdx}`);
+    const tagCheckboxes = document.querySelectorAll(`.tag-checkbox[id^="tag-${groupIdx}-${projIdx}-"]`);
+    
+    const isChecked = selectAllCheckbox.checked;
+    
+    tagCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+}
+
+async function deleteSelectedTagsInProject(groupIdx, projIdx, projectId) {
+  const checkboxes = document.querySelectorAll(
+    `#tags-list-${groupIdx}-${projIdx} .tag-checkbox:checked`
+  );
+
+  if (!checkboxes.length) {
+    alert("Выберите хотя бы один тег для удаления");
+    return;
+  }
+
+  if (!confirm(`Удалить выбранные теги (${checkboxes.length} шт.)?`)) return;
+
+  await Promise.all(
+    Array.from(checkboxes).map(cb =>
+      deleteTag(groupIdx, projIdx, projectId, cb.dataset.tagName, true)
+    )
+  );
 }
