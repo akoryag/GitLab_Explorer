@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>GitLab Explorer</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>GitLab Explorer</h1>
+
+  {{if not .Loaded}}
+  <form method="POST" action="/">
+    <label>Gitlab URL</label><br>
+    <input type="text" name="gitlabURL" placeholder="https://gitlab.com" pattern="https://.+" size="30" required><br><br>
+
+    <label>GitLab OAuth Token</label><br>
+    <input type="password" name="token" size="30" required><br><br>
+
+    <label>Root Group ID</label><br>
+    <input type="text" name="rootGroupID" placeholder="1111, 2222" size="30" min="0" step="1" required><br><br>
+
+    <button type="submit" class="primary-btn">Загрузить</button>
+  </form>
+  {{else}}
+  <form method="POST" action="/logout">
+    <button type="submit" class="primary-btn">Выйти</button>
+  </form>
+
+  <div class="tabs">
+    <div class="tab active" onclick="openTab('pipelines')">Пайплайны</div>
+    <div class="tab" onclick="openTab('tags')">Теги</div>
+  </div>
+
+  <div id="pipelines" class="tab-content active">
+    {{if .Error}}
+    <p class="error">Ошибка: {{.Error}}</p>
+    {{end}}
+
+    {{range $i, $g := .Groups}}
+    <div class="group">
+      <div class="group-header" onclick="toggleGroup('group{{$i}}')">
+        <span id="btn-group{{$i}}" class="toggle-btn">[+]</span>
+        <h2>Группа: {{$g.Name}} ({{$g.Path}})</h2>
+      </div>
+
+      <div id="group{{$i}}" class="group-content">
+        <button type="button" onclick="loadSelectedPipelines('{{$i}}')" class="retry-btn" style="margin-left: 5px; margin-bottom: 10px;">Загрузить выбранные</button>
+        <button type="button" onclick="clearAllPipelines('{{$i}}')" class="cancel-btn" style="margin-left: 5px; margin-bottom: 10px;">Очистить</button>
+        <table>
+          <tr>
+            <th width="30px">
+              <input type="checkbox" id="header-checkbox-{{$i}}" onchange="toggleAllProjects('{{$i}}')">
+            </th>
+            <th>Проект</th>
+            <th>
+              Реф
+              <select id="group-ref-{{$i}}" onchange="applyGroupRef('{{$i}}')">
+                <option value="">— Массовый выбор —</option>
+                {{range $r := $g.AllRefs}}<option>{{$r}}</option>{{end}}
+              </select>
+            </th>
+            <th>Действие</th>
+            <th>
+              Джоб / Bridge
+              <input type="text" id="searchJobs-{{$i}}" size="30" placeholder="Поиск jobs" oninput="filterJobs('{{$i}}')">
+            </th>
+          </tr>
+          {{range $j, $p := $g.Projects}}
+          <tr>
+            <td>
+              <input type="checkbox" id="project-{{$i}}-{{$j}}" class="project-checkbox" data-group="{{$i}}" data-project="{{$j}}" data-projectid="{{$p.ID}}">
+            </td>
+            <td>{{.Name}}</td>
+            <td>
+              <select id="ref-{{$i}}-{{$j}}" style="width: 250px;">
+                {{range .Refs}}<option>{{.}}</option>{{else}}<option>—</option>{{end}}
+              </select>
+            </td>
+            <td>
+              <button type="button" onclick="loadPipeline('{{$i}}', '{{$j}}', '{{$p.ID}}')" class="retry-btn">Загрузить пайплайн</button> <br>
+              <button type="button" onclick="openPipeline('{{$i}}', '{{$j}}', '{{$p.ID}}')" class="run-btn">Перейти</button>
+            </td>
+            <td>
+              <div id="pipeline-{{$i}}-{{$j}}" class="pipeline-section">
+                <p class="pipeline-error" id="pipeline-error-{{$i}}-{{$j}}" style="display:none;"></p>
+                <table>
+                  <tbody id="jobs-{{$i}}-{{$j}}"></tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+          {{end}}
+          {{if not $g.Projects}}
+          <tr><td colspan="4">Нет проектов</td></tr>
+          {{end}}
+        </table>
+      </div>
+    </div>
+    {{end}}
+  </div>
+
+<div id="tags" class="tab-content">
+  <h2>Управление тегами</h2>
+
+  {{range $i, $g := .Groups}}
+  <div class="group">
+    <div class="group-header" onclick="toggleGroup('tags-group{{$i}}')">
+      <span id="btn-tags-group{{$i}}" class="toggle-btn">[+]</span>
+      <h2>Группа: {{$g.Name}} ({{$g.Path}})</h2>
+    </div>
+
+    <div id="tags-group{{$i}}" class="group-content">
+      <div style="display: flex; align-items: center; margin-bottom: 10px;">
+        <div>
+          <button type="button" onclick="loadSelectedTags('{{$i}}')" class="retry-btn" style="margin-right: 5px;">Загрузить теги</button>
+          <button type="button" onclick="clearAllTags('{{$i}}')" class="cancel-btn">Очистить</button>
+        </div>
+        <div style="margin-left: auto; display: flex; align-items: center;">
+          <button type="button" onclick="createTagsForSelected('{{$i}}')" class="run-btn">Создать теги</button>
+          <span style="margin-left: 10px; font-size: 12px; color: #666;">
+            (тег будет создан от выбранного бранча каждого проекта)
+          </span>
+        </div>
+      </div>
+
+      <table>
+        <tr>
+          <th width="30px">
+            <input type="checkbox" id="tags-header-checkbox-{{$i}}" onchange="toggleAllTagsProjects('{{$i}}')">
+          </th>
+          <th>Проект</th>
+          <th>
+            Бранч
+            <select id="tags-group-ref-{{$i}}" onchange="applyTagsGroupRef('{{$i}}')">
+              <option value="">— Массовый выбор —</option>
+              {{range $r := $g.AllBranches}}<option>{{$r}}</option>{{end}}
+            </select>
+          </th>
+          <th>Теги</th>
+        </tr>
+
+        {{range $j, $p := $g.Projects}}
+        <tr>
+          <td>
+            <input type="checkbox" id="tags-project-{{$i}}-{{$j}}" class="tags-project-checkbox" data-group="{{$i}}" data-project="{{$j}}" data-projectid="{{$p.ID}}">
+          </td>
+          <td>{{.Name}}</td>
+          <td>
+            <select id="tags-ref-{{$i}}-{{$j}}" style="width: 250px;">
+              {{range .Branches}}<option>{{.}}</option>{{else}}<option>—</option>{{end}}
+            </select>
+          </td>
+          <td>
+            <div class="tags-container">
+              <div id="tags-list-{{$i}}-{{$j}}" class="tags-list"></div>
+            </div>
+          </td>
+        </tr>
+        {{end}}
+
+        {{if not $g.Projects}}
+        <tr><td colspan="4">Нет проектов</td></tr>
+        {{end}}
+      </table>
+    </div>
+  </div>
+  {{end}}
+</div>
+  {{end}}
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

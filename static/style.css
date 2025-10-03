@@ -1,0 +1,196 @@
+/* Общие стили */
+body {
+  font-family: "Segoe UI", Roboto, sans-serif;
+  margin: 20px auto;
+  max-width: 1100px;
+  line-height: 1.5;
+  background: #f9fafb;
+  color: #333;
+}
+
+h1 {
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 24px;
+  color: #222;
+}
+
+button {
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+input,
+select {
+  padding: 6px 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.error {
+  color: red;
+  margin-top: 10px;
+}
+
+/* Формы */
+form {
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+}
+
+.primary-btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  background: #007bff;
+  color: white;
+}
+
+.primary-btn:hover {
+  background: #0056b3;
+}
+
+/* Группы */
+.group {
+  margin-top: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+.group-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.group-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: #111;
+}
+
+.group-content {
+  display: none;
+  padding: 12px;
+  font-size: 14px;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Таблицы */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 16px;
+}
+
+th, td {
+  border: 1px solid #e5e7eb;
+  padding: 6px;
+  text-align: left;
+}
+
+th {
+  background: #f9fafb;
+  font-weight: bold;
+}
+
+/* Jobs */
+.stage-row {
+  background: #f3f4f6;
+  font-weight: bold;
+}
+
+.job-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-name {
+  flex: 1;
+}
+
+/* Статусы */
+.status-btn {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  border: none;
+  min-width: 80px;
+  text-align: center;
+}
+
+.status-failed { background-color: #dc2626; }
+.status-manual { background-color: #f59e0b; }
+.status-success { background-color: #16a34a; }
+.status-running { background-color: #2563eb; }
+
+/* Действия */
+.run-btn,
+.retry-btn,
+.cancel-btn {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  min-width: 80px;
+  color: white;
+}
+
+.run-btn { background: #16a34a; border: none; }
+.run-btn:hover { background: #15803d; }
+
+.retry-btn { background: #2563eb; border: none; }
+.retry-btn:hover { background: #1d4ed8; }
+
+.cancel-btn { background: #dc2626; border: none; }
+.cancel-btn:hover { background: #b91c1c; }
+
+.tabs {
+      display: flex;
+      border-bottom: 2px solid #ccc;
+      margin-bottom: 10px;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-bottom: none;
+      background: #f5f5f5;
+      margin-right: 5px;
+      border-radius: 5px 5px 0 0;
+    }
+    .tab.active {
+      background: white;
+      font-weight: bold;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
